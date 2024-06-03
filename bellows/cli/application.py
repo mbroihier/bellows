@@ -92,7 +92,8 @@ def permit_with_key(ctx, database, duration_s, node, code):
 @main.command()
 @opts.database_file
 @click.pass_context
-def devices(ctx, database):
+@util.background
+async def devices(ctx, database):
     """Show device database"""
 
     def print_clusters(title, clusters):
@@ -102,15 +103,13 @@ def devices(ctx, database):
         for cluster_id, cluster in clusters:
             click.echo(f"        {cluster.name} ({cluster_id})")
 
-    loop = asyncio.get_event_loop()
     config = {
         zigpy.config.CONF_DATABASE: database,
         bellows.config.CONF_DEVICE: {bellows.config.CONF_DEVICE_PATH: "/dev/null"},
     }
     config = bellows.config.CONFIG_SCHEMA(config)
-    app = loop.run_until_complete(
-        bellows.zigbee.application.ControllerApplication.new(config, start_radio=False)
-    )
+    reader = bellows.zigbee.application.ControllerApplication.new(config, start_radio=False) 
+    app = await reader
     for ieee, dev in app.devices.items():
         click.echo("Device:")
         click.echo(f"  NWK: 0x{dev.nwk:04x}")
@@ -128,7 +127,7 @@ def devices(ctx, database):
                 )
                 print_clusters("Input Clusters", ep.in_clusters)
                 print_clusters("Output Clusters", ep.out_clusters)
-
+    await app.shutdown()
 
 @main.group()
 @click.pass_context
@@ -348,6 +347,38 @@ async def command(ctx, command, parameters, manufacturer):
 
     try:
         v = await getattr(cluster, command)(*parameters, manufacturer=manufacturer)
+        click.echo(v)
+    except ValueError as e:
+        click.echo(e)
+    except zigpy.exceptions.ZigbeeException as e:
+        click.echo(e)
+
+
+@zcl.command()
+@click.pass_context
+@click.argument("command")
+@click.argument("parameters", nargs=-1)
+@opts.manufacturer
+@util.app
+async def script(ctx, command, parameters, manufacturer):
+    app = ctx.obj["app"]
+    node = ctx.obj["node"]
+    endpoint_id = ctx.obj["endpoint"]
+    cluster_id = ctx.obj["cluster"]
+
+    dev, endpoint, cluster = util.get_in_cluster(app, node, endpoint_id, cluster_id)
+    if cluster is None:
+        return
+
+    onCofunction = getattr(cluster,command)
+    offCofunction = getattr(cluster,'off')
+    print("onCofunction:", onCofunction)
+    print("offCofuction:", offCofunction)
+    try:
+        v = await onCofunction(*parameters, manufacturer=manufacturer)
+        click.echo(v)
+        await asyncio.sleep(5.0)
+        v = await offCofunction(*parameters, manufacturer=manufacturer)
         click.echo(v)
     except ValueError as e:
         click.echo(e)
