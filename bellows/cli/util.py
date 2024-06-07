@@ -36,6 +36,7 @@ def background(f):
     @functools.wraps(f)
     def inner(*args, **kwargs):
         loop = asyncio.get_event_loop()
+        LOGGER.debug(f"running next process in background {args}")
         loop.run_until_complete(f(*args, **kwargs))
 
     return inner
@@ -48,13 +49,23 @@ def app(f, app_startup=True, extra_config=None):
     async def async_inner(ctx, *args, **kwargs):
         nonlocal database_file
         nonlocal application
+        info = dir(ctx)
+        LOGGER.debug(f"setting up next process as an application {ctx} {info} {args} {kwargs}")
+        if "database_file" in ctx.obj:
+            db = ctx.obj["database_file"]
+        else:
+            if 'database' in kwargs:
+                db = kwargs['database']
+            else:
+                LOGGER.warning("Internal bellows error, database can not be located")
+                db = ""
         app_config = {
             zigpy_conf.CONF_DEVICE: {
                 zigpy_conf.CONF_DEVICE_PATH: ctx.obj["device"],
                 zigpy_conf.CONF_DEVICE_BAUDRATE: ctx.obj["baudrate"],
                 zigpy_conf.CONF_DEVICE_FLOW_CONTROL: ctx.obj["flow_control"],
             },
-            zigpy_conf.CONF_DATABASE: ctx.obj["database_file"],
+            zigpy_conf.CONF_DATABASE: db,
         }
         if extra_config:
             app_config.update(extra_config)

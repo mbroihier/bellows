@@ -353,33 +353,26 @@ async def command(ctx, command, parameters, manufacturer):
     except zigpy.exceptions.ZigbeeException as e:
         click.echo(e)
 
-
-@zcl.command()
+@main.command()
+@opts.database_file
 @click.pass_context
-@click.argument("command")
-@click.argument("parameters", nargs=-1)
-@opts.manufacturer
 @util.app
-async def script(ctx, command, parameters, manufacturer):
+async def script(ctx, database):
+    ''' Execute a script in background '''
+    from . import script_file as sf
+
     app = ctx.obj["app"]
-    node = ctx.obj["node"]
-    endpoint_id = ctx.obj["endpoint"]
-    cluster_id = ctx.obj["cluster"]
+    click.echo("Available nodes to talk to that have on/off switches")
+    commandList = {}  # build a command list for all nodes that can be turned on and off
+    for node in app.devices:
+        if app.devices[node].nwk != 0:
+            dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
+            commandList[app.devices[node].ieee.__repr__()+'on'] = getattr(cluster, 'on')
+            commandList[app.devices[node].ieee.__repr__()+'off'] = getattr(cluster, 'off')
+            click.echo(f"{app.devices[node].ieee.__repr__()}")
 
-    dev, endpoint, cluster = util.get_in_cluster(app, node, endpoint_id, cluster_id)
-    if cluster is None:
-        return
-
-    onCofunction = getattr(cluster,command)
-    offCofunction = getattr(cluster,'off')
-    print("onCofunction:", onCofunction)
-    print("offCofuction:", offCofunction)
     try:
-        v = await onCofunction(*parameters, manufacturer=manufacturer)
-        click.echo(v)
-        await asyncio.sleep(5.0)
-        v = await offCofunction(*parameters, manufacturer=manufacturer)
-        click.echo(v)
+        await sf.entry(ctx, commandList, click)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
