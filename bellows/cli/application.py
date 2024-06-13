@@ -369,6 +369,7 @@ async def script(ctx, database):
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
             commandList[app.devices[node].ieee.__repr__()+'on'] = getattr(cluster, 'on')
             commandList[app.devices[node].ieee.__repr__()+'off'] = getattr(cluster, 'off')
+            commandList[app.devices[node].ieee.__repr__()+'status'] = getattr(cluster, 'read_attributes')
             click.echo(f"{app.devices[node].ieee.__repr__()}")
 
     try:
