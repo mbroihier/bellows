@@ -14,19 +14,45 @@ class ScriptHandler(httpServer.BaseHTTPRequestHandler):
     '''
     ScriptHandler that handles POST requests
     '''
+    def run_async_command(self, command):
+        v = asyncio.run(command())
+        print(f"async command status: {v}")
+
     def do_GET(self):
         print("got a get with:", self.path)
-        command = self.path.split('/')[1]
-        print(command)
-        if command in self.server.commandList:
-            self.send_response(200)
+        if self.path == '/':
+            self.send_response(301)
+            self.send_header('Location', '/index.html')
             self.end_headers()
-            rthread = threading.Thread(target=asyncio.run, args=(self.server.commandList[command](),))
-            rthread.start()
-            print("processing done")
+        elif self.path == '/index.html':
+            with open('./index.html', 'r') as fileObject:
+                content = ""
+                for line in fileObject:
+                    content += line
+                content = content.encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'text')
+                self.send_header('Content-Length', len(content))
+                self.end_headers()
+                self.wfile.write(content)
         else:
-            self.send_error(404)
-            self.end_headers()
+            command = self.path.split('/')[1]
+            command = command.rstrip("?")
+            print(f"processing command: {command}")
+            if command in self.server.commandList:
+                try:
+                    print(f"command issued but thread may not be done for a while")
+                    rthread = threading.Thread(target=self.run_async_command, args=(self.server.commandList[command],))
+                    rthread.start()
+                except Exception as e:
+                    print(f"light command failed with exception: {e}")
+                print("sending a reply to go back to index file")
+                self.send_response(302)
+                self.send_header('Location', '/index.html')
+                self.end_headers()
+            else:
+                self.send_error(404)
+                self.end_headers()
 
     def do_POST(self):
         length = int(self.headers['Content-Length'])
