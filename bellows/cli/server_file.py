@@ -53,35 +53,35 @@ async def entry(ctx, commandList, click):
                 state = 'unknown'
             lastStatus[getDevice(command)] = state
 
-    LOGGER.debug("Creating server")
+    LOGGER.debug("Creating zcl server")
     server = await loop.create_server(lambda: ZCLServerProtocol(commandList, doCommand, lastStatus), '', 8125)
     async with server:
-        LOGGER.debug("Starting server")
+        LOGGER.debug("Starting zcl server")
         await server.start_serving()
         while True:
             await asyncio.sleep(0.1)
             if doCommand:
-                LOGGER.debug(f"doing command: {doCommand[0]}")
+                LOGGER.debug(f"zcl server doing command: {doCommand[0]}")
                 if 'status' in doCommand[0]:
                     try:
                         v = await commandList[doCommand[0]]([0], allow_cache=False)
-                        LOGGER.debug(f"status: {v}")
+                        LOGGER.debug(f"zcl server status: {v}")
                         if v[0][0] == False:
                             lastStatus[getDevice(doCommand[0])] = 'off'
                         else:
                             lastStatus[getDevice(doCommand[0])] = 'on'
                     except Exception as e:
-                        LOGGER.debug(f"Exception: {e}")
+                        LOGGER.debug(f"zcl server Exception: {e}")
                         lastStatus[getDevice(doCommand[0])] = 'unknown'
                 else:
                     try:
                         v = await commandList[doCommand[0]]()
-                        LOGGER.debug(f"status: {v}")
+                        LOGGER.debug(f"zcl server status: {v}")
                         if v.as_tuple()[0] == 0:
                             lastStatus[getDevice(doCommand[0])] = 'off'
                         else:
                             lastStatus[getDevice(doCommand[0])] = 'on'
                     except Exception as e:
-                        LOGGER.debug(f"Exception: {e}")
+                        LOGGER.debug(f"zcl server Exception: {e}")
                         lastStatus[getDevice(doCommand[0])] = 'unknown'
                 del doCommand[0]
