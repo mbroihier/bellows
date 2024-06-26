@@ -2,6 +2,23 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <script>
+      window.onload = function(){
+	  let test = function(){
+	      let check =
+		  (document.getElementById("btn1").getAttribute('style')  == 'visibility: visible' &&
+		   document.getElementById("btn2").getAttribute('style')  == 'visibility: visible') ||
+		  (document.getElementById("btn3").getAttribute('style')  == 'visibility: visible' &&
+		   document.getElementById("btn4").getAttribute('style')  == 'visibility: visible');
+	      return check;
+	  }
+	  setInterval(function(){
+	      if (test()) {
+		  window.location.reload(1);
+	      }
+	  }, 10000);
+      }
+      </script>
     <title> Light Controller </title>
   </head>
   <body>
@@ -27,10 +44,10 @@
     <ul>
       <div>
       <form>
-      <li><button type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6on" formmethod="get">bedroom on</button></li>
-      <li><button type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6off" formmethod="get">bedroom off</button></li>
-      <li><button type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58on" formmethod="get"> office on </button></li>
-      <li><button type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58off" formmethod="get"> office off </button></li>
+      <li><button id="btn1" style="visibility: visible" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6on" formmethod="get">bedroom on</button></li>
+      <li><button id="btn2" style="visibility: visible" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6off" formmethod="get">bedroom off</button></li>
+      <li><button id="btn3" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58on" formmethod="get"> office on </button></li>
+      <li><button id="btn4" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58off" formmethod="get"> office off </button></li>
       </form>
       </div>
     </ul>

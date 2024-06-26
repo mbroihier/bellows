@@ -19,6 +19,7 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
         if 'status' in command:
             device = command.replace('status', '')
             self.server.lightStatus[device] = v.split(' ')[1]
+            self.server.lightStatusTime[device] = time.time()
             print(f"lightStatus for {device} is {self.server.lightStatus[device]}")
         print(f"async command status: {v}")
 
@@ -29,13 +30,21 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
             self.send_header('Location', '/index.html')
             self.end_headers()
         elif self.path == '/index.html':
+            for device in self.server.lightStatus:
+                # refresh status if it is unknown
+                if self.server.lightStatus[device] == 'unknown' or (time.time() - self.server.lightStatusTime[device] >15.0):
+                    command = device + 'status'
+                    sthread = threading.Thread(target=self.run_async_command, args=(command,))
+                    sthread.start()
+                    sthread.join()
+
             with open('./index.html', 'r') as fileObject:
                 content = ""
                 for line in fileObject:
                     for device in self.server.lightStatus:
                         if device in line:
                             if device+self.server.lightStatus[device] in line:
-                                line = ''
+                                line = line.replace('visible', 'hidden')
                     content += line
                 content = content.encode('utf-8')
                 self.send_response(200)
@@ -126,6 +135,8 @@ def main():
                           '34:10:f4:ff:fe:2f:3f:b6status': True}
     server.lightStatus = {'b0:c7:de:ff:fe:52:ca:58': 'unknown',
                           '34:10:f4:ff:fe:2f:3f:b6': 'unknown'}
+    server.lightStatusTime = {'b0:c7:de:ff:fe:52:ca:58': 0,
+                              '34:10:f4:ff:fe:2f:3f:b6': 0}
     backgroundObject = HTTPServerBackground(server)
     backgroundThread = threading.Thread(target=backgroundObject.background)
     try:

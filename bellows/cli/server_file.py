@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ class ZCLServerProtocol(asyncio.Protocol):
         message = message.rstrip()
         LOGGER.debug(f"message recieved: {message}")
         if message in self.commandList:
+            while len(self.doCommand) != 0:
+                time.sleep(0.5)
             self.doCommand.append(message)
             if 'status' in message:
                 self.transport.write(("ack " + self.lastStatus[getDevice(message)]).encode())
