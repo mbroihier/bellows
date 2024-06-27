@@ -21,6 +21,11 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
             self.server.lightStatus[device] = v.split(' ')[1]
             self.server.lightStatusTime[device] = time.time()
             print(f"lightStatus for {device} is {self.server.lightStatus[device]}")
+        else:
+            device = command.replace('on', '')
+            device = device.replace('off', '')
+            self.server.lightStatus[device] = 'unknown'
+            
         print(f"async command status: {v}")
 
     def do_GET(self):
@@ -33,10 +38,15 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
             for device in self.server.lightStatus:
                 # refresh status if it is unknown
                 if self.server.lightStatus[device] == 'unknown' or (time.time() - self.server.lightStatusTime[device] >15.0):
-                    command = device + 'status'
-                    sthread = threading.Thread(target=self.run_async_command, args=(command,))
-                    sthread.start()
-                    sthread.join()
+                    count = 2
+                    self.server.lightStatus[device] = 'unknown'
+                    while self.server.lightStatus[device] == 'unknown' and count > 0:
+                        print(f"reading status for {device}, count = {count}")
+                        command = device + 'status'
+                        sthread = threading.Thread(target=self.run_async_command, args=(command,))
+                        sthread.start()
+                        sthread.join()
+                        count -= 1
 
             with open('./index.html', 'r') as fileObject:
                 content = ""
@@ -65,9 +75,14 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
                     time.sleep(0.3)
                     command = command.replace('on', 'status')
                     command = command.replace('off', 'status')
-                    sthread = threading.Thread(target=self.run_async_command, args=(command,))
-                    sthread.start()
-                    sthread.join()
+                    device = command.replace('status', '')
+                    count = 2
+                    while self.server.lightStatus[device] == 'unknown' and count > 0:
+                        print(f"reading status, count = {count}")
+                        sthread = threading.Thread(target=self.run_async_command, args=(command,))
+                        sthread.start()
+                        sthread.join()
+                        count -= 1
                 except Exception as e:
                     print(f"light command failed with exception: {e}")
                 print("sending a reply to go back to index file")
