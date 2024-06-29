@@ -1,8 +1,11 @@
 import asyncio
+import copy
+import json
 import logging
+from websockets.server import serve as wsserve
 
 LOGGER = logging.getLogger(__name__)
-
+lastStatus = {}
 class ZCLServerProtocol(asyncio.Protocol):
     def __init__(self, commandList, doCommand, lastStatus):
         super().__init__()
@@ -39,7 +42,7 @@ async def entry(ctx, commandList, click):
     address = ('', 8125)
     loop = asyncio.get_running_loop()
     doCommand = []
-    lastStatus = {}
+    global lastStatus
     for command in commandList:
         if 'status' in command:
             try:
@@ -56,9 +59,11 @@ async def entry(ctx, commandList, click):
 
     LOGGER.debug("Creating zcl server")
     server = await loop.create_server(lambda: ZCLServerProtocol(commandList, doCommand, lastStatus), '', 8125)
+    wsserver = await wsserve(reportStatus, "", 8126)
     async with server:
-        LOGGER.debug("Starting zcl server")
+        LOGGER.debug("Starting zcl server************************##########################")
         await server.start_serving()
+        await wsserver.start_serving()
         while True:
             await asyncio.sleep(0.1)
             if doCommand:
@@ -86,3 +91,23 @@ async def entry(ctx, commandList, click):
                         LOGGER.debug(f"zcl server Exception: {e}")
                         lastStatus[getDevice(doCommand[0])] = 'unknown'
                 del doCommand[0]
+count = 0
+async def reportStatus(websocket):
+    global lastStatus
+    global count
+    count += 1
+    LOGGER.debug(f"new ws server connection: {count} sending {lastStatus}")
+    await websocket.send(json.dumps(lastStatus))
+    lastSentStatus = copy.deepcopy(lastStatus)
+    while True:
+        await asyncio.sleep(1.0)
+        if lastStatus != lastSentStatus:  #send an update
+            LOGGER.debug(f"sending updated status {lastStatus}")
+            try:
+                await websocket.send(json.dumps(lastStatus))
+                lastSentStatus = copy.deepcopy(lastStatus)
+            except Exception as e:
+                LOGGER.warning(f"ws got an exception: {e}, exiting client connection")
+                break  #leave this client
+            
+

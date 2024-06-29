@@ -4,19 +4,37 @@
     <meta charset="utf-8">
     <script>
       window.onload = function(){
-	  let test = function(){
-	      let check =
-		  (document.getElementById("btn1").getAttribute('style')  == 'visibility: visible' &&
-		   document.getElementById("btn2").getAttribute('style')  == 'visibility: visible') ||
-		  (document.getElementById("btn3").getAttribute('style')  == 'visibility: visible' &&
-		   document.getElementById("btn4").getAttribute('style')  == 'visibility: visible');
-	      return check;
-	  }
-	  setInterval(function(){
-	      if (test()) {
-		  window.location.reload(1);
+	  let socket = new WebSocket("ws://192.168.1.224:8126");
+	  socket.onopen = function(e) {
+	      console.log("ws connection made");
+	      socket.send("{ connected: true }");
+	  };
+	  socket.onmessage = function(event) {
+	      let statusObject = JSON.parse(event.data);
+	      console.log(statusObject)
+	      for (device in statusObject) {
+		  console.log("working with " + device);
+		  if (statusObject[device] == 'on') {
+		      console.log("device is " + statusObject[device])
+		      document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
+		      document.getElementById(device+'on').setAttribute('style', 'visibility: hidden');
+		  } else if (statusObject[device] == 'off') {
+		      console.log("device is " + statusObject[device])
+		      document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
+		      document.getElementById(device+'off').setAttribute('style', 'visibility: hidden');
+		  } else if (statusObject[device] == 'unknown') {
+		      console.log("device is " + statusObject[device])
+		      document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
+		      document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
+		  } else {
+		      document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
+		      document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
+		  }
 	      }
-	  }, 10000);
+	  }
+	  socket.onclose = function(e) {
+	      console.log("didn't expect close");
+	  }
       }
       </script>
     <title> Light Controller </title>
@@ -44,10 +62,10 @@
     <ul>
       <div>
       <form>
-      <li><button id="btn1" style="visibility: visible" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6on" formmethod="get">bedroom on</button></li>
-      <li><button id="btn2" style="visibility: visible" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6off" formmethod="get">bedroom off</button></li>
-      <li><button id="btn3" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58on" formmethod="get"> office on </button></li>
-      <li><button id="btn4" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58off" formmethod="get"> office off </button></li>
+      <li><button id="34:10:f4:ff:fe:2f:3f:b6on" style="visibility: hidden" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6on" formmethod="get">bedroom on</button></li>
+      <li><button id="34:10:f4:ff:fe:2f:3f:b6off" style="visibility: hidden" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6off" formmethod="get">bedroom off</button></li>
+      <li><button id="b0:c7:de:ff:fe:52:ca:58on" style="visibility: hidden" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58on" formmethod="get"> office on </button></li>
+      <li><button id="b0:c7:de:ff:fe:52:ca:58off" style="visibility: hidden" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58off" formmethod="get"> office off </button></li>
       </form>
       </div>
     </ul>
