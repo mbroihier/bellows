@@ -5,9 +5,11 @@
     <script>
       window.onload = function(){
 	  let socket = new WebSocket("ws://192.168.1.224:8126");
+	  var wsexists = false;
 	  socket.onopen = function(e) {
 	      console.log("ws connection made");
 	      socket.send("{ connected: true }");
+	      wsexists = true;
 	  };
 	  socket.onmessage = function(event) {
 	      let statusObject = JSON.parse(event.data);
@@ -34,6 +36,14 @@
 	  }
 	  socket.onclose = function(e) {
 	      console.log("didn't expect close");
+	      if (!wsexists) {
+		  statusObject = {"34:10:f4:ff:fe:2f:3f:b6" : true, "b0:c7:de:ff:fe:52:ca:58" : true};
+		  for (device in statusObject) {
+		      console.log("setting up for no websocket server " + device);
+		      document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
+		      document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
+		  }
+	      }
 	  }
       }
       </script>
