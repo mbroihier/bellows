@@ -38,6 +38,10 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
             with open('./index.html', 'r') as fileObject:
                 content = ""
                 for line in fileObject:
+                    if '<form>' in line:
+                        line = ""
+                    if '</form>' in line:
+                        line = ""
                     content += line
                 content = content.encode('utf-8')
                 self.send_response(200)

@@ -6,6 +6,8 @@ from websockets.server import serve as wsserve
 
 LOGGER = logging.getLogger(__name__)
 lastStatus = {}
+doCommand = []
+gCommandList = {}
 class ZCLServerProtocol(asyncio.Protocol):
     def __init__(self, commandList, doCommand, lastStatus):
         super().__init__()
@@ -41,8 +43,9 @@ async def entry(ctx, commandList, click):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
     address = ('', 8125)
     loop = asyncio.get_running_loop()
-    doCommand = []
     global lastStatus
+    global gCommandList
+    gCommandList = commandList
     for command in commandList:
         if 'status' in command:
             try:
@@ -94,15 +97,26 @@ async def entry(ctx, commandList, click):
 count = 0
 async def reportStatus(websocket):
     global lastStatus
+    global doCommand;
+    global gCommandList
     global count
     count += 1
     LOGGER.debug(f"new ws server connection: {count} sending {lastStatus}")
     await websocket.send(json.dumps(lastStatus))
     lastSentStatus = copy.deepcopy(lastStatus)
     while True:
-        await asyncio.sleep(1.0)
+        try:
+            message = await asyncio.wait_for(websocket.recv(), timeout=0.3)
+            print(f"{message}")
+            if message in gCommandList:
+                doCommand.append(message)
+        except asyncio.exceptions.TimeoutError:
+            pass
+        except Exception as e:
+            LOGGER.warning(f"Exception occurred while waiting for a websocket message: {e}")
+            break
         if lastStatus != lastSentStatus:  #send an update
-            LOGGER.debug(f"sending updated status {lastStatus}")
+            LOGGER.warning(f"sending updated status {lastStatus}")
             try:
                 await websocket.send(json.dumps(lastStatus))
                 lastSentStatus = copy.deepcopy(lastStatus)
