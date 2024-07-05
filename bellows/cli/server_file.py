@@ -107,7 +107,7 @@ async def reportStatus(websocket):
     while True:
         try:
             message = await asyncio.wait_for(websocket.recv(), timeout=0.3)
-            print(f"{message}")
+            LOGGER.debug(f"{message}")
             if message in gCommandList:
                 doCommand.append(message)
         except asyncio.exceptions.TimeoutError:
@@ -116,7 +116,7 @@ async def reportStatus(websocket):
             LOGGER.warning(f"Exception occurred while waiting for a websocket message: {e}")
             break
         if lastStatus != lastSentStatus:  #send an update
-            LOGGER.warning(f"sending updated status {lastStatus}")
+            LOGGER.debug(f"sending updated status {lastStatus}")
             try:
                 await websocket.send(json.dumps(lastStatus))
                 lastSentStatus = copy.deepcopy(lastStatus)
