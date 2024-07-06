@@ -62,7 +62,7 @@ async def entry(ctx, commandList, click):
 
     LOGGER.debug("Creating zcl server")
     server = await loop.create_server(lambda: ZCLServerProtocol(commandList, doCommand, lastStatus), '', 8125)
-    wsserver = await wsserve(reportStatus, "", 8126)
+    wsserver = await wsserve(websocketHandler, "", 8126)
     async with server:
         LOGGER.debug("Starting zcl server************************##########################")
         await server.start_serving()
@@ -94,34 +94,42 @@ async def entry(ctx, commandList, click):
                         LOGGER.debug(f"zcl server Exception: {e}")
                         lastStatus[getDevice(doCommand[0])] = 'unknown'
                 del doCommand[0]
-count = 0
-async def reportStatus(websocket):
-    global lastStatus
-    global doCommand;
+
+async def websocketHandler(websocket):
+    consumer_task = asyncio.create_task(consumer_handler(websocket))
+    producer_task = asyncio.create_task(producer_handler(websocket))
+    done, pending = await asyncio.wait([consumer_task, producer_task],
+                                     return_when=asyncio.FIRST_COMPLETED, )
+    for task in pending:
+        task.cancel()
+
+async def consumer_handler(websocket):
     global gCommandList
-    global count
-    count += 1
-    LOGGER.debug(f"new ws server connection: {count} sending {lastStatus}")
+    global doCommand
+    async for message in websocket:
+        while True:
+            try:
+                message = await websocket.recv()
+                LOGGER.debug(f"{message}")
+                if message in gCommandList:
+                    doCommand.append(message)
+            except:
+                LOGGER.warning("can not read websocket, closing client connection")
+                break
+
+async def producer_handler(websocket):
+    global lastSentStatus
+    global lastStatus
     await websocket.send(json.dumps(lastStatus))
     lastSentStatus = copy.deepcopy(lastStatus)
     while True:
-        try:
-            message = await asyncio.wait_for(websocket.recv(), timeout=0.3)
-            LOGGER.debug(f"{message}")
-            if message in gCommandList:
-                doCommand.append(message)
-        except asyncio.exceptions.TimeoutError:
-            pass
-        except Exception as e:
-            LOGGER.warning(f"Exception occurred while waiting for a websocket message: {e}")
-            break
-        if lastStatus != lastSentStatus:  #send an update
-            LOGGER.debug(f"sending updated status {lastStatus}")
+        await asyncio.sleep(0.3)
+        if lastStatus != lastSentStatus:
             try:
                 await websocket.send(json.dumps(lastStatus))
                 lastSentStatus = copy.deepcopy(lastStatus)
-            except Exception as e:
-                LOGGER.warning(f"ws got an exception: {e}, exiting client connection")
-                break  #leave this client
+            except:
+                LOGGER.warning("can not write to websocket, closing client connection")
+                break
             
 
