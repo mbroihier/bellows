@@ -373,7 +373,7 @@ async def script(ctx, database):
             click.echo(f"{app.devices[node].ieee.__repr__()}")
 
     try:
-        await sf.entry(ctx, commandList, click)
+        await sf.entry(commandList)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
@@ -399,7 +399,7 @@ async def zcl_server(ctx, database):
             click.echo(f"{app.devices[node].ieee.__repr__()}")
 
     try:
-        await sf.entry(ctx, commandList, click)
+        await sf.entry(commandList)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:

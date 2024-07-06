@@ -39,7 +39,7 @@ def getDevice(command):
     result = result.replace('status', '')
     return result
 
-async def entry(ctx, commandList, click):
+async def entry(commandList):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
     address = ('', 8125)
     loop = asyncio.get_running_loop()
@@ -64,7 +64,7 @@ async def entry(ctx, commandList, click):
     server = await loop.create_server(lambda: ZCLServerProtocol(commandList, doCommand, lastStatus), '', 8125)
     wsserver = await wsserve(websocketHandler, "", 8126)
     async with server:
-        LOGGER.debug("Starting zcl server************************##########################")
+        LOGGER.debug("Starting zcl server")
         await server.start_serving()
         await wsserver.start_serving()
         while True:

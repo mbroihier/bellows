@@ -9,7 +9,7 @@ import threading
 
 LOGGER = logging.getLogger(__name__)
 
-async def entry(ctx, commandList, click):
+async def entry(commandList):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
     address = ('', 8124)
     server = httpServer.HTTPServer(address, http_server.ScriptHandler)
