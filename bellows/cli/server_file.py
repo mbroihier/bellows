@@ -115,10 +115,10 @@ async def consumer_handler(websocket):
                     doCommand.append(message)
             except:
                 LOGGER.warning("can not read websocket, closing client connection")
+                await websocket.close()
                 break
 
 async def producer_handler(websocket):
-    global lastSentStatus
     global lastStatus
     await websocket.send(json.dumps(lastStatus))
     lastSentStatus = copy.deepcopy(lastStatus)
@@ -130,6 +130,7 @@ async def producer_handler(websocket):
                 lastSentStatus = copy.deepcopy(lastStatus)
             except:
                 LOGGER.warning("can not write to websocket, closing client connection")
+                await websocket.close()
                 break
             
 
