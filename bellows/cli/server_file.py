@@ -106,17 +106,20 @@ async def websocketHandler(websocket):
 async def consumer_handler(websocket):
     global gCommandList
     global doCommand
-    async for message in websocket:
-        while True:
-            try:
-                message = await websocket.recv()
-                LOGGER.debug(f"{message}")
-                if message in gCommandList:
-                    doCommand.append(message)
-            except:
-                LOGGER.warning("can not read websocket, closing client connection")
-                await websocket.close()
-                break
+    try:
+        async for message in websocket:
+            while True:
+                try:
+                    message = await websocket.recv()
+                    LOGGER.debug(f"{message}")
+                    if message in gCommandList:
+                        doCommand.append(message)
+                except:
+                    LOGGER.warning("can not read websocket, closing client connection")
+                    await websocket.close()
+                    break
+    except Exception as e:
+        LOGGER.warning(f"{e} while waiting for a message from websocket, connection closed")
 
 async def producer_handler(websocket):
     global lastStatus
