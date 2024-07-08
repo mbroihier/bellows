@@ -14,20 +14,6 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
     '''
     HTTPHandler that handles GET requests of HTTP protocol - POSTs are ignored
     '''
-    def run_async_command(self, command):
-        v = asyncio.run(mainClient(command))
-        if 'status' in command:
-            device = command.replace('status', '')
-            self.server.lightStatus[device] = v.split(' ')[1]
-            self.server.lightStatusTime[device] = time.time()
-            print(f"lightStatus for {device} is {self.server.lightStatus[device]}")
-        else:
-            device = command.replace('on', '')
-            device = device.replace('off', '')
-            self.server.lightStatus[device] = 'unknown'
-            
-        print(f"async command status: {v}")
-
     def do_GET(self):
         print("got a get with:", self.path)
         if self.path == '/':
@@ -38,10 +24,6 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
             with open('./index.html', 'r') as fileObject:
                 content = ""
                 for line in fileObject:
-                    if '<form>' in line:
-                        line = ""
-                    if '</form>' in line:
-                        line = ""
                     content += line
                 content = content.encode('utf-8')
                 self.send_response(200)
@@ -50,25 +32,8 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(content)
         else:
-            command = self.path.split('/')[1]
-            command = command.rstrip("?")
-            print(f"processing command: {command}")
-            if command in self.server.commandList:
-                try:
-                    print(f"command issued but thread may not be done for a while")
-                    cthread = threading.Thread(target=self.run_async_command, args=(command,))
-                    cthread.start()
-                    cthread.join()
-                    time.sleep(0.3)  # give a little time to help screen display
-                except Exception as e:
-                    print(f"light command failed with exception: {e}")
-                print("sending a reply to go back to index file")
-                self.send_response(302)
-                self.send_header('Location', '/index.html')
-                self.end_headers()
-            else:
-                self.send_error(404)
-                self.end_headers()
+            self.send_error(404)
+            self.end_headers()
 
     def do_POST(self):
         length = int(self.headers['Content-Length'])
@@ -87,32 +52,6 @@ class HTTPServerBackground():
     def shutdown(self):
         self.terminate = True
         
-class ZigBeeClient(asyncio.Protocol):
-    def __init__(self, message, on_lost):
-        self.message = message
-        self.on_lost = on_lost
-
-    def connection_made(self, transport):
-        transport.write(self.message.encode())
-
-    def data_received(self, data):
-        self.data = data
-
-    def connection_lost(self, exc):
-        self.on_lost.set_result(True)
-
-async def mainClient(message):
-    loop = asyncio.get_running_loop()
-    on_lost = loop.create_future()
-    transport, client = await loop.create_connection(
-        lambda: ZigBeeClient(message, on_lost), "localhost", 8125)
-    try:
-        await on_lost
-        print(client.data)
-        return client.data.decode()
-    finally:
-        transport.close()
-
 def main():
     '''
     Test main program for server

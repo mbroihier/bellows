@@ -25,7 +25,7 @@ class ScriptHandler(httpServer.BaseHTTPRequestHandler):
             self.send_header('Location', '/index.html')
             self.end_headers()
         elif self.path == '/index.html':
-            with open('./index.html', 'r') as fileObject:
+            with open('./index.template', 'r') as fileObject:
                 content = ""
                 for line in fileObject:
                     content += line

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title> Light Controller </title>
+  </head>
+  <body>
+    <style>
+      div {
+	  width: 100%;
+	  height: 300px;
+	  text-align: center;
+      }
+      ul {
+	  list-style-type: none;
+      }
+      button {
+	  width: 35%;
+	  padding: 4px 4px;
+	  border: 3px solid black;
+	  margin: 2px 2px;
+	  font-size: 50px;
+	  border-radius: 10px;
+      }
+    </style>
+    <h1> Switches </h1>
+    <ul>
+      <div>
+      <form>
+      <li><button id="34:10:f4:ff:fe:2f:3f:b6on" style="visibility: visible" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6on" formmethod="get">bedroom on</button></li>
+      <li><button id="34:10:f4:ff:fe:2f:3f:b6off" style="visibility: visible" type="submit" formaction="/34:10:f4:ff:fe:2f:3f:b6off" formmethod="get">bedroom off</button></li>
+      <li><button id="b0:c7:de:ff:fe:52:ca:58on" style="visibility: visible"  type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58on" formmethod="get">office on </button></li>
+      <li><button id="b0:c7:de:ff:fe:52:ca:58off" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58off" formmethod="get"> office off </button></li>
+      </form>
+      </div>
+    </ul>
+  </body>
+</html>
