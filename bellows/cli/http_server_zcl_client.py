@@ -5,11 +5,17 @@ HTTP server and ZigBee client - services HTTP GETs and issues commands to the Zi
 import asyncio
 from http import server as httpServer
 import logging
+import os
+import signal
 import socket
 import threading
 import time
 
 LOGGER = logging.getLogger(__name__)
+
+def sigint_handler(signal, frame):
+    print("shutting down server....")
+    os._exit(0)
 
 class HTTPHandler(httpServer.BaseHTTPRequestHandler):
     '''
@@ -57,6 +63,8 @@ def main():
     '''
     Test main program for server
     '''
+    signal.signal(signal.SIGINT, sigint_handler)
+    
     address = ('::', 8124)
     class HTTPServerV6(httpServer.HTTPServer):
         address_family = socket.AF_INET6
