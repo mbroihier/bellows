@@ -5,6 +5,7 @@ HTTP server and ZigBee client - services HTTP GETs and issues commands to the Zi
 import asyncio
 from http import server as httpServer
 import logging
+import socket
 import threading
 import time
 
@@ -56,8 +57,10 @@ def main():
     '''
     Test main program for server
     '''
-    address = ('', 8124)
-    server = httpServer.HTTPServer(address, HTTPHandler)
+    address = ('::', 8124)
+    class HTTPServerV6(httpServer.HTTPServer):
+        address_family = socket.AF_INET6
+    server = HTTPServerV6(address, HTTPHandler)
     server.commandList = {'b0:c7:de:ff:fe:52:ca:58on': True,
                           'b0:c7:de:ff:fe:52:ca:58off': True,
                           'b0:c7:de:ff:fe:52:ca:58status': True,
