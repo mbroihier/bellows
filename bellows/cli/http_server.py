@@ -14,11 +14,6 @@ class ScriptHandler(httpServer.BaseHTTPRequestHandler):
     '''
     ScriptHandler that handles POST requests
     '''
-    def run_async_command(self, command):
-        future = asyncio.run_coroutine_threadsafe(command(), self.server.eventLoop)
-        v = future.result()
-        print(f"async command status: {v}")
-
     def do_GET(self):
         print("got a get with:", self.path)
         if self.path == '/':
@@ -42,9 +37,10 @@ class ScriptHandler(httpServer.BaseHTTPRequestHandler):
             print(f"processing command: {command}")
             if command in self.server.commandList:
                 try:
-                    print(f"command issued but thread may not be done for a while")
-                    rthread = threading.Thread(target=self.run_async_command, args=(self.server.commandList[command],))
-                    rthread.start()
+                    future = asyncio.run_coroutine_threadsafe(self.server.commandList[command](),
+                                                              self.server.eventLoop)
+                    v = future.result()
+                    print(f"async command status: {v}")
                 except Exception as e:
                     print(f"light command failed with exception: {e}")
                 print("sending a reply to go back to index file")
