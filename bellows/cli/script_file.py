@@ -13,6 +13,7 @@ async def entry(commandList):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
     address = ('', 8124)
     server = httpServer.HTTPServer(address, http_server.ScriptHandler)
+    server.eventLoop = asyncio.get_running_loop()
     server.commandList = commandList
     backgroundObject = http_server.HTTPServerBackground(server)
     backgroundThread = threading.Thread(target=backgroundObject.background)

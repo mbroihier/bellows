@@ -15,7 +15,8 @@ class ScriptHandler(httpServer.BaseHTTPRequestHandler):
     ScriptHandler that handles POST requests
     '''
     def run_async_command(self, command):
-        v = asyncio.run(command())
+        future = asyncio.run_coroutine_threadsafe(command(), self.server.eventLoop)
+        v = future.result()
         print(f"async command status: {v}")
 
     def do_GET(self):
