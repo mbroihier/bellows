@@ -1,6 +1,6 @@
 #!/usr/bin/env -S python
 import asyncio
-
+import calendar
 import logging
 
 import click
@@ -27,7 +27,6 @@ def getTime():
     global clock
     global debugTimeDelta
     if debug:
-        LOGGER.info(f"using simulated time with delta of {debugTimeDelta}")
         clock += debugTimeDelta
         t = clock
     else:
@@ -45,30 +44,31 @@ def read_sunset_file():
             LOGGER.debug(f"{numbers[0]}: {sunset[int(numbers[0])]}");
     return
 
-def next_sunset(currentTime, firstTime=False):
+def next_sunset(currentTime):
     currentTimeStructure = time.gmtime(currentTime)
-    currentTimeSecondOfTheDay = currentTimeStructure.tm_hour * 3600 + currentTimeStructure.tm_min * 60
-    todaysSunset = sunset[currentTimeStructure.tm_mday][currentTimeStructure.tm_mon - 1]
-    todaysSunsetSecondOfTheDay = int(todaysSunset[:2]) * 3600 + int(todaysSunset[2:]) * 60
-    LOGGER.info(f"current second of the day: {currentTimeSecondOfTheDay}, today's sunset "
-                f"second of the day: {todaysSunsetSecondOfTheDay}")
-    difference = todaysSunsetSecondOfTheDay - currentTimeSecondOfTheDay
-    if firstTime:
-        if difference < 0:
-            waitTime = FULL_DAY + difference
-    else:
-        if difference > DELTA_UPPER_LIMIT or difference < DELTA_LOWER_LIMIT:
-            was = difference
-            difference = difference + FULL_DAY
-            LOGGER.info(f"needed to compensate, new difference: {difference}, was: {was}")
-            if difference > DELTA_UPPER_LIMIT or difference < DELTA_LOWER_LIMIT:
-                if difference > 0:
-                    difference -= 2 * FULL_DAY
-                    LOGGER.info(f"reworking, new difference: {difference}")
-                else:
-                    LOGGER.error(f"logic error in time delta compensation")
+    sunsetASCII = sunset[currentTimeStructure.tm_mday][currentTimeStructure.tm_mon - 1]
+    baseStructure = time.gmtime(currentTime + FULL_DAY)
+    sunsetStructure = (baseStructure.tm_year,
+                       baseStructure.tm_mon,
+                       baseStructure.tm_mday,
+                       int(sunsetASCII[:2]),
+                       int(sunsetASCII[2:]),
+                       0,
+                       baseStructure.tm_wday,
+                       baseStructure.tm_yday,
+                       baseStructure.tm_isdst)
+    sunsetTime = calendar.timegm(sunsetStructure)
+    LOGGER.info(f"current time: {currentTime}, next sunset: {sunsetTime}")
+    difference = sunsetTime - currentTime
+    if difference < 1000:
+        LOGGER.info(f"difference lower than one day: sunset is {sunsetASCII}")
         waitTime = FULL_DAY + difference
-    LOGGER.info(f"difference between the two: {difference}, wait time: {waitTime}")
+    elif difference > FULL_DAY + 1000:
+        LOGGER.info(f"difference higher than one day: sunset is {sunsetASCII}")
+        waitTime = difference - FULL_DAY
+    else:
+        waitTime = difference
+    LOGGER.info(f"waitTime: {waitTime}")
     return waitTime
 
 @click.command()
@@ -85,11 +85,11 @@ async def lights(ctx, device, baudrate, flow_control):
     click_log.basic_config()
     read_sunset_file()
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
-    debugTimeDelta = 10.0
+    debugTimeDelta = 11.0
     currentTime = getTime()
     currentTimeStructure = time.gmtime(currentTime)
     lastTmYday = currentTimeStructure.tm_yday
-    timeToDelay = next_sunset(currentTime, True)
+    timeToDelay = next_sunset(currentTime)
     nextUpdateTime = currentTime + timeToDelay
     await asyncio.sleep(1.0)
     dayCount = 0;
@@ -101,7 +101,7 @@ async def lights(ctx, device, baudrate, flow_control):
                 timeToDelay = next_sunset(currentTime)
                 nextUpdateTime = currentTime + timeToDelay
                 dayCount += 1
-                LOGGER.info(f"time stamp for update: {time.gmtime(currentTime)}, day = {dayCount}")
+                LOGGER.info(f"time stamp for update: {time.gmtime(currentTime)}, next sunset: {nextUpdateTime}, delta: {timeToDelay},  day = {dayCount}")
                 if currentTimeStructure.tm_yday != lastTmYday + 1:
                     if currentTimeStructure.tm_yday != 1:
                         LOGGER.info(f"tm_yday discontinuity, value is: {currentTimeStructure.tm_yday}")

@@ -2,17 +2,24 @@ import asyncio
 import copy
 import json
 import logging
+import signal
 from websockets.server import serve as wsserve
 
 LOGGER = logging.getLogger(__name__)
 lastStatus = {}
 doCommand = []
 gCommandList = {}
+continueLoop = True
 def getDevice(command):
     result = command.replace('on', '')
     result = result.replace('off', '')
     result = result.replace('status', '')
     return result
+
+def sigint_handler(signal, frame):
+    global continueLoop
+    print("/nshutting down server....")
+    continueLoop = False
 
 async def entry(commandList):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
@@ -20,6 +27,7 @@ async def entry(commandList):
     loop = asyncio.get_running_loop()
     global lastStatus
     global gCommandList
+    global continueLoop
     gCommandList = commandList
     for command in commandList:
         if 'status' in command:
@@ -38,9 +46,10 @@ async def entry(commandList):
     LOGGER.debug("Creating zcl server")
     wsserver = await wsserve(websocketHandler, "", 8126)
     async with wsserver:
+        signal.signal(signal.SIGINT, sigint_handler)
         LOGGER.debug("Starting zcl server")
         await wsserver.start_serving()
-        while True:
+        while continueLoop:
             await asyncio.sleep(0.1)
             if doCommand:
                 LOGGER.debug(f"zcl server doing command: {doCommand[0]}")
@@ -69,10 +78,12 @@ async def entry(commandList):
                 del doCommand[0]
 
 async def websocketHandler(websocket):
+    LOGGER.debug("websocket server connection is starting")
     consumer_task = asyncio.create_task(consumer_handler(websocket))
     producer_task = asyncio.create_task(producer_handler(websocket))
     done, pending = await asyncio.wait([consumer_task, producer_task],
                                      return_when=asyncio.FIRST_COMPLETED, )
+    LOGGER.debug("websocket server connection is terminating")
     for task in pending:
         task.cancel()
 

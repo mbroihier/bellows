@@ -5,17 +5,18 @@ HTTP server and ZigBee client - services HTTP GETs and issues commands to the Zi
 import asyncio
 from http import server as httpServer
 import logging
-import os
+import requests
 import signal
 import socket
 import threading
 import time
 
 LOGGER = logging.getLogger(__name__)
-
+continueLoop = True
 def sigint_handler(signal, frame):
-    print("shutting down server....")
-    os._exit(0)
+    global continueLoop
+    LOGGER.warning("\nshutting down server....")
+    continueLoop = False
 
 class HTTPHandler(httpServer.BaseHTTPRequestHandler):
     '''
@@ -63,6 +64,7 @@ def main():
     '''
     Test main program for server
     '''
+    global continueLoop
     signal.signal(signal.SIGINT, sigint_handler)
     
     address = ('::', 8124)
@@ -84,16 +86,16 @@ def main():
     try:
         backgroundThread.start()
     except Exception as e:
-        print(f"Received a {e} exception")
-        backgroundObject.shutdown()
-        backgroundThread.join()
-    while True:
+        LOGGER.warning(f"Received a {e} exception")
+        continueLoop = False
+    while continueLoop:
         try:
             time.sleep(1.0)
-        except KeyboardInterrupt:
-            backgroundObject.shutdown()
-            backgroundThread.join()
+        except:
             break
-
+    backgroundObject.shutdown()
+    response = requests.get('http://localhost:8124/index.html')
+    LOGGER.debug(f"got {response}")
+    backgroundThread.join()
 if __name__ == "__main__":
     main()
