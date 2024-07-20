@@ -98,6 +98,10 @@ async def consumer_handler(websocket):
                     LOGGER.debug(f"{message}")
                     if message in gCommandList:
                         doCommand.append(message)
+                    else:
+                        LOGGER.warning("bad command read from websocket, closing client connection")
+                        await websocket.close()
+                        break
                 except:
                     LOGGER.warning("can not read websocket, closing client connection")
                     await websocket.close()
@@ -107,7 +111,7 @@ async def consumer_handler(websocket):
 
 async def producer_handler(websocket):
     global lastStatus
-    await websocket.send(json.dumps(lastStatus))
+    await websocket.send(json.dumps(lastStatus))  # this message is sent on connection
     lastSentStatus = copy.deepcopy(lastStatus)
     while True:
         await asyncio.sleep(0.3)

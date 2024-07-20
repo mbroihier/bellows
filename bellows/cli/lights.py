@@ -7,6 +7,7 @@ import click
 import click_log
 
 import time
+import websockets
 
 from bellows.cli import opts
 from bellows.cli import util
@@ -58,53 +59,64 @@ def next_sunset(currentTime):
                        baseStructure.tm_yday,
                        baseStructure.tm_isdst)
     sunsetTime = calendar.timegm(sunsetStructure)
-    LOGGER.info(f"current time: {currentTime}, next sunset: {sunsetTime}")
+    LOGGER.debug(f"current time: {currentTime}, next sunset: {sunsetTime}")
     difference = sunsetTime - currentTime
     if difference < 1000:
-        LOGGER.info(f"difference lower than one day: sunset is {sunsetASCII}")
+        LOGGER.debug(f"difference lower than one day: sunset is {sunsetASCII}")
         waitTime = FULL_DAY + difference
     elif difference > FULL_DAY + 1000:
-        LOGGER.info(f"difference higher than one day: sunset is {sunsetASCII}")
+        LOGGER.debug(f"difference higher than one day: sunset is {sunsetASCII}")
         waitTime = difference - FULL_DAY
     else:
         waitTime = difference
-    LOGGER.info(f"waitTime: {waitTime}")
+    LOGGER.debug(f"waitTime: {waitTime}")
     return waitTime
 
 @click.command()
 @click_log.simple_verbosity_option(logging.getLogger(), default="WARNING")
-@opts.device
-@opts.baudrate
-@opts.flow_control
-@click.pass_context
 @util.background
-async def lights(ctx, device, baudrate, flow_control):
+async def lights():
     ''' Lights control task '''
     global debug
     global debugTimeDelta
     click_log.basic_config()
     read_sunset_file()
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
-    debugTimeDelta = 11.0
+    debugTimeDelta = 1234.0
     currentTime = getTime()
     currentTimeStructure = time.gmtime(currentTime)
     lastTmYday = currentTimeStructure.tm_yday
     timeToDelay = next_sunset(currentTime)
     nextUpdateTime = currentTime + timeToDelay
-    await asyncio.sleep(1.0)
     dayCount = 0;
+    calls = 0
     while True:
+        await asyncio.sleep(1.0)
         currentTime = getTime()
+        calls += 1
         if currentTime >= nextUpdateTime:
             try:
+                async with websockets.connect("ws://192.168.1.224:8126") as socket:
+                    await socket.send("lights connection request")
+                    message = await socket.recv()
+                    LOGGER.debug(f"received: {message}")
+                    await socket.send("b0:c7:de:ff:fe:52:ca:58on")
+                    message = await socket.recv()
+                    LOGGER.debug("received: {message}")
+                    await socket.send("34:10:f4:ff:fe:2f:3f:b6on")
+                    message = await socket.recv()
+                    LOGGER.debug("received: {message}")
                 currentTimeStructure = time.gmtime(currentTime)
                 timeToDelay = next_sunset(currentTime)
                 nextUpdateTime = currentTime + timeToDelay
                 dayCount += 1
-                LOGGER.info(f"time stamp for update: {time.gmtime(currentTime)}, next sunset: {nextUpdateTime}, delta: {timeToDelay},  day = {dayCount}")
+                LOGGER.debug(f"time stamp for update: {time.gmtime(currentTime)}, "
+                            "next sunset: {nextUpdateTime}, delta: {timeToDelay},  day = {dayCount}")
+                LOGGER.debug(f"calls: {calls}")
+                calls = 0
                 if currentTimeStructure.tm_yday != lastTmYday + 1:
                     if currentTimeStructure.tm_yday != 1:
-                        LOGGER.info(f"tm_yday discontinuity, value is: {currentTimeStructure.tm_yday}")
+                        LOGGER.debug(f"tm_yday discontinuity, value is: {currentTimeStructure.tm_yday}")
                 lastTmYday = currentTimeStructure.tm_yday
             except Exception as e:
                 LOGGER.error(f"Exception detected: {e}, terminating")
