@@ -16,8 +16,6 @@ from bellows.cli import util
 LOGGER = logging.getLogger(__name__)
 
 FULL_DAY = 24 * 3600
-DELTA_UPPER_LIMIT = 300
-DELTA_LOWER_LIMIT = -300
 sunset = {}
 sunrise = {}
 
@@ -163,6 +161,7 @@ async def timeServer():
                       "34:10:f4:ff:fe:2f:3f:b6": [ 0 * 60 * 60 + 0 * 60 ]}
     sunsetOffOffset = {"b0:c7:de:ff:fe:52:ca:58": [ 0 * 60 * 60 + 0 * 60 ],
                        "34:10:f4:ff:fe:2f:3f:b6": [ 0 * 60 * 60 + 0 * 60 ]}
+    
     timeOn = {"b0:c7:de:ff:fe:52:ca:58": [],
               "34:10:f4:ff:fe:2f:3f:b6": []}
     timeOff = {"b0:c7:de:ff:fe:52:ca:58": [],
@@ -175,6 +174,13 @@ async def timeServer():
                       "34:10:f4:ff:fe:2f:3f:b6": [ 0 * 60 * 60 + 0 * 60 ]}
     sunsetOffOffset = {"b0:c7:de:ff:fe:52:ca:58": [ 0 * 60 * 60 + 45 * 60 ],
                        "34:10:f4:ff:fe:2f:3f:b6": [ ]}
+   
+    deviceTL = {"b0:c7:de:ff:fe:52:ca:58": {"timeOn": timeOn, "timeOff": timeOff, "sunriseOn": sunriseOnOffset,
+                                            "sunriseOff": sunriseOffOffset, "sunsetOn": sunsetOnOffset,
+                                            "sunsetOff": sunsetOffOffset},
+                     "34:10:f4:ff:fe:2f:3f:b6": {"timeOn": timeOn, "timeOff": timeOff, "sunriseOn": sunriseOnOffset,
+                                            "sunriseOff": sunriseOffOffset, "sunsetOn": sunsetOnOffset,
+                                            "sunsetOff": sunsetOffOffset}}
     deviceTLIndex = {"b0:c7:de:ff:fe:52:ca:58": {"timeOn": 0, "timeOff": 0, "sunriseOn": 0, "sunriseOff": 0,
                                                  "sunsetOn": 0, "sunsetOff": 0},
                      "34:10:f4:ff:fe:2f:3f:b6": {"timeOn": 0, "timeOff": 0, "sunriseOn": 0, "sunriseOff": 0,
@@ -185,7 +191,6 @@ async def timeServer():
                                                      "sunsetOn": 0, "sunsetOff": 0}}
     # end of the information inserted by buildTools
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
-    debugTimeDelta = 1234.0
     debugTimeDelta = 10.0
     # based on current time, update deviceUpdateTimes, and time line index
     currentTime = getTime()
@@ -197,90 +202,22 @@ async def timeServer():
     nextUpdateTimeSR = currentTime + next_sunrise(currentTime)
     index = 0
     for device in devices:
-        timeArray = timeOn[device]
-        found = False
-        for t in timeArray:
-            if t > timeOfDay:
-                found = True
-                deviceTLIndex[device]["timeOn"] = index
-                break
-            index += 1
-        if not found:
+        for eventType in deviceTLIndex[device]:
+            timeArray = deviceTL[device][eventType][device]
+            found = False
+            for t in timeArray:
+                if t > timeOfDay:
+                    found = True
+                    deviceTLIndex[device][eventType] = index
+                    break
+                index += 1
+            if not found:
+                deviceTLIndex[device][eventType] = 0
             index = 0
-            deviceTLIndex[device]["timeOn"] = index
-    index = 0
-    for device in devices:
-        timeArray = timeOff[device]
-        found = False
-        for t in timeArray:
-            if t > timeOfDay:
-                found = True
-                deviceTLIndex[device]["timeOff"] = index
-                break
-            index += 1
-        if not found:
-            index = 0
-            deviceTLIndex[device]["timeOff"] = index
-    index = 0
-    for device in devices:
-        timeArray = sunriseOnOffset[device]
-        found = False
-        for t in timeArray:
-            ot = t + next_sunrise(currentTime)
-            if ot > timeOfDay:
-                found = True
-                deviceTLIndex[device]["sunriseOn"] = index
-                break
-            index += 1
-        if not found:
-            index = 0
-            deviceTLIndex[device]["sunriseOn"] = index
-    index = 0
-    for device in devices:
-        timeArray = sunriseOffOffset[device]
-        found = False
-        for t in timeArray:
-            ot = t + next_sunrise(currentTime)
-            if ot > timeOfDay:
-                found = True
-                deviceTLIndex[device]["sunriseOff"] = index
-                break
-            index += 1
-        if not found:
-            index = 0
-            deviceTLIndex[device]["sunriseOff"] = index
-    index = 0
-    for device in devices:
-        timeArray = sunsetOnOffset[device]
-        found = False
-        for t in timeArray:
-            ot = t + next_sunset(currentTime)
-            if ot > timeOfDay:
-                found = True
-                deviceTLIndex[device]["sunsetOn"] = index
-                break
-            index += 1
-        if not found:
-            index = 0
-            deviceTLIndex[device]["sunsetOn"] = index
-    index = 0
-    for device in devices:
-        timeArray = sunsetOffOffset[device]
-        found = False
-        for t in timeArray:
-            ot = t + next_sunset(currentTime)
-            if t > timeOfDay:
-                found = True
-                deviceTLIndex[device]["sunsetOff"] = index
-                break
-            index += 1
-        if not found:
-            index = 0
-            deviceTLIndex[device]["sunsetOff"] = index
     for device in deviceTLIndex:
-        LOGGER.debug(f"device: {device}")
+        LOGGER.info(f"Time line device: {device}")
         for k, v in deviceTLIndex[device].items():
-            LOGGER.debug(f"{k}: {v}")
+            LOGGER.info(f"Time line index - {k}: {v}")
     for device in deviceTLIndex:
         for k, v in deviceTLIndex[device].items():
             if (k == "timeOn") and (len(timeOn[device]) > 0):
@@ -302,9 +239,11 @@ async def timeServer():
                 deviceUpdateTimes[device][k] = next_sunset(currentTime) + sunsetOffOffset[device][v] + currentTime
                 deviceTLIndex[device][k] = (v + 1) % len(sunsetOffOffset[device])
     for device in deviceUpdateTimes:
-        LOGGER.info(f"device: {device}")
+        LOGGER.info(f"Time of first update - device: {device}")
         for k, v in deviceUpdateTimes[device].items():
-            LOGGER.info(f"{k}: {v}")
+            if v != 0:
+                LOGGER.info(f"Time of first update - {k}: {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(v))}")
+
     while True:
         if not debug:
             await asyncio.sleep(1.0)
