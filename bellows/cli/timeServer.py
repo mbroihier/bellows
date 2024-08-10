@@ -260,11 +260,11 @@ async def timeServer():
                             async with websockets.connect("ws://localhost:8126") as socket:
                                 await socket.send("time server connection request")
                                 message = await socket.recv()
-                                LOGGER.info(f"received: {message}")
+                                LOGGER.info(f"received initial/connection status of: {message}")
                                 LOGGER.info(f"device: {device}, command: {command}")
                                 await socket.send(device+command)
                                 message = await socket.recv()
-                                LOGGER.info(f"received: {message}")
+                                LOGGER.info(f"received final status of: {message}")
                         except Exception as e:
                             LOGGER.error(f"Exception detected {e}, terminating")
                             sys.exit(-1)
@@ -288,8 +288,6 @@ async def timeServer():
                                                         + sunsetOnOffset[device][index] + currentTime)
                         deviceTLIndex[device][k] = (index + 1) % len(sunsetOnOffset[device])
                     if k == "sunsetOff":
-                        LOGGER.debug(f"Sunset Time Off - {device}"
-                                     f" {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(currentTime))}")
                         deviceUpdateTimes[device][k] = (next_sunset(currentTime) + sunsetOffOffset[device][index]
                                                         + currentTime)
                         deviceTLIndex[device][k] = (index + 1) % len(sunsetOffOffset[device])
