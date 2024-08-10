@@ -383,8 +383,8 @@ async def script(ctx, database):
 @opts.database_file
 @click.pass_context
 @util.app
-async def zcl_server(ctx, database):
-    ''' Services ZCL commands from a client '''
+async def gateway(ctx, database):
+    ''' ZCL command gateway '''
     from . import server_file as sf
 
     app = ctx.obj["app"]
@@ -400,6 +400,33 @@ async def zcl_server(ctx, database):
 
     try:
         await sf.entry(commandList)
+    except ValueError as e:
+        click.echo(e)
+    except zigpy.exceptions.ZigbeeException as e:
+        click.echo(e)
+
+
+@main.command()
+@opts.database_file
+@click.pass_context
+@util.app
+async def buildTools(ctx, database):
+    ''' build bellows plus tools '''
+    from . import build_tools as bf
+
+    app = ctx.obj["app"]
+    click.echo("Available nodes to talk to that have on/off switches")
+    commandList = {}  # build a command list for all nodes that can be turned on and off
+    for node in app.devices:
+        if app.devices[node].nwk != 0:
+            dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
+            commandList[app.devices[node].ieee.__repr__()+'on'] = getattr(cluster, 'on')
+            commandList[app.devices[node].ieee.__repr__()+'off'] = getattr(cluster, 'off')
+            commandList[app.devices[node].ieee.__repr__()+'status'] = getattr(cluster, 'read_attributes')
+            click.echo(f"{app.devices[node].ieee.__repr__()}")
+
+    try:
+        await bf.entry(commandList)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
