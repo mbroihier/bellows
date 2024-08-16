@@ -367,10 +367,10 @@ async def script(ctx, database):
     for node in app.devices:
         if app.devices[node].nwk != 0:
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            commandList[app.devices[node].ieee.__repr__()+'on'] = getattr(cluster, 'on')
-            commandList[app.devices[node].ieee.__repr__()+'off'] = getattr(cluster, 'off')
-            commandList[app.devices[node].ieee.__repr__()+'status'] = getattr(cluster, 'read_attributes')
-            click.echo(f"{app.devices[node].ieee.__repr__()}")
+            commandList[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
+            commandList[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
+            commandList[repr(app.devices[node].ieee)+'status'] = getattr(cluster, 'read_attributes')
+            click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
         await sf.entry(commandList)
@@ -393,10 +393,10 @@ async def gateway(ctx, database):
     for node in app.devices:
         if app.devices[node].nwk != 0:
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            commandList[app.devices[node].ieee.__repr__()+'on'] = getattr(cluster, 'on')
-            commandList[app.devices[node].ieee.__repr__()+'off'] = getattr(cluster, 'off')
-            commandList[app.devices[node].ieee.__repr__()+'status'] = getattr(cluster, 'read_attributes')
-            click.echo(f"{app.devices[node].ieee.__repr__()}")
+            commandList[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
+            commandList[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
+            commandList[repr(app.devices[node].ieee)+'status'] = getattr(cluster, 'read_attributes')
+            click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
         await sf.entry(commandList)
@@ -420,10 +420,10 @@ async def buildTools(ctx, database):
     for node in app.devices:
         if app.devices[node].nwk != 0:
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            commandList[app.devices[node].ieee.__repr__()+'on'] = getattr(cluster, 'on')
-            commandList[app.devices[node].ieee.__repr__()+'off'] = getattr(cluster, 'off')
-            commandList[app.devices[node].ieee.__repr__()+'status'] = getattr(cluster, 'read_attributes')
-            click.echo(f"{app.devices[node].ieee.__repr__()}")
+            commandList[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
+            commandList[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
+            commandList[repr(app.devices[node].ieee)+'status'] = getattr(cluster, 'read_attributes')
+            click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
         await bf.entry(commandList)
