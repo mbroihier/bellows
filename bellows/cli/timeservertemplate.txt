@@ -6,6 +6,7 @@ import logging
 import click
 import click_log
 
+import json
 import time
 import sys
 import websockets
@@ -220,9 +221,12 @@ async def timeServer():
                                 message = await socket.recv()
                                 LOGGER.info(f"received initial/connection status of: {message}")
                                 LOGGER.info(f"device: {device}, command: {command}")
-                                await socket.send(device+command)
-                                message = await socket.recv()
-                                LOGGER.info(f"received final status of: {message}")
+                                if json.loads(message)[device] == command:
+                                    LOGGER.warning(f"{json.loads(message)[device]} matches commanded state")
+                                else:
+                                    await socket.send(device+command)
+                                    message = await socket.recv()
+                                    LOGGER.info(f"received final status of: {message}")
                         except Exception as e:
                             LOGGER.error(f"Exception detected {e}, terminating")
                             sys.exit(-1)

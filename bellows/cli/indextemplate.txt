@@ -48,7 +48,7 @@
 		  socket = null;
 	      }
 	  }
-	  start("initial startup");
+	  start("http server connection request");
 	  wssend = function(message) {
 	      try {
 		  console.log("sending " + message);
