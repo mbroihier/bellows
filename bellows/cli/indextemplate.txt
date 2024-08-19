@@ -6,7 +6,6 @@
       window.onload = function(){
 	  var socket = null;
 	  var initialMessage;
-	  var statusObject = {"34:10:f4:ff:fe:2f:3f:b6" : true, "b0:c7:de:ff:fe:52:ca:58" : true};
 	  let start = function(message) {
 	      initialMessage = message;
 	      socket = new WebSocket("ws://192.168.1.224:8126");
@@ -14,11 +13,6 @@
 	      socket.onopen = function(e) {
 		  console.log("ws connection made");
 		  socket.send(initialMessage);
-		  for (device in statusObject) {
-		      let message = device + 'status';
-		      console.log("sending: " + message);
-		      socket.send(message);
-		  }
 	      };
 	      socket.onmessage = function(event) {
 		  statusObject = JSON.parse(event.data);

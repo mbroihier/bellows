@@ -6,7 +6,6 @@
       window.onload = function(){
 	  var socket = null;
 	  var initialMessage;
-	  var statusObject = {"34:10:f4:ff:fe:2f:3f:b6" : true, "b0:c7:de:ff:fe:52:ca:58" : true};
 	  let start = function(message) {
 	      initialMessage = message;
 	      socket = new WebSocket("ws://192.168.1.224:8126");
@@ -14,14 +13,9 @@
 	      socket.onopen = function(e) {
 		  console.log("ws connection made");
 		  socket.send(initialMessage);
-		  for (device in statusObject) {
-		      let message = device + 'status';
-		      console.log("sending: " + message);
-		      socket.send(message);
-		  }
 	      };
 	      socket.onmessage = function(event) {
-		  statusObject = JSON.parse(event.data);
+		  let statusObject = JSON.parse(event.data);
 		  console.log(statusObject)
 		  for (device in statusObject) {
 		      console.log("working with " + device);
@@ -48,7 +42,7 @@
 		  socket = null;
 	      }
 	  }
-	  start("initial startup");
+	  start("http server connection request");
 	  wssend = function(message) {
 	      try {
 		  console.log("sending " + message);
@@ -84,10 +78,10 @@
     <h1> Switches </h1>
     <ul>
       <div>
-      <li><button id="34:10:f4:ff:fe:2f:3f:b6on" style="visibility: hidden" onclick="wssend('34:10:f4:ff:fe:2f:3f:b6on')" >bedroom on</button></li>
-      <li><button id="34:10:f4:ff:fe:2f:3f:b6off" style="visibility: hidden" onclick="wssend('34:10:f4:ff:fe:2f:3f:b6off')">bedroom off</button></li>
-      <li><button id="b0:c7:de:ff:fe:52:ca:58on" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58on')" >office on </button></li>
-      <li><button id="b0:c7:de:ff:fe:52:ca:58off" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58off')"> office off </button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58on" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58on')" >office on</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58off" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58off')" >office off</button></li>
+<li><button id="34:10:f4:ff:fe:2f:3f:b6on" style="visibility: hidden" onclick="wssend('34:10:f4:ff:fe:2f:3f:b6on')" >bedroom on</button></li>
+<li><button id="34:10:f4:ff:fe:2f:3f:b6off" style="visibility: hidden" onclick="wssend('34:10:f4:ff:fe:2f:3f:b6off')" >bedroom off</button></li>
       </div>
     </ul>
   </body>
