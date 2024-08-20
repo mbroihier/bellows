@@ -214,22 +214,24 @@ async def timeServer():
                         command = "on"
                     else:
                         command = "off"
-                    if not debug:
-                        try:
-                            async with websockets.connect("ws://localhost:8126") as socket:
-                                await socket.send("time server connection request")
-                                message = await socket.recv()
-                                LOGGER.info(f"received initial/connection status of: {message}")
-                                LOGGER.info(f"device: {device}, command: {command}")
-                                if json.loads(message)[device] == command:
-                                    LOGGER.warning(f"{json.loads(message)[device]} matches commanded state")
-                                else:
-                                    await socket.send(device+command)
-                                    message = await socket.recv()
-                                    LOGGER.info(f"received final status of: {message}")
-                        except Exception as e:
-                            LOGGER.error(f"Exception detected {e}, terminating")
-                            sys.exit(-1)
+                    try:
+                        async with websockets.connect("ws://localhost:8126") as socket:
+                            await socket.send("time server connection request")
+                            message = await asyncio.wait_for(socket.recv(), timeout=1.0)
+                            LOGGER.info(f"received initial/connection status of: {message}")
+                            LOGGER.info(f"device: {device}, command: {command}")
+                            if json.loads(message)[device] == command:
+                                LOGGER.warning(f"{json.loads(message)[device]} matches commanded state")
+                            else:
+                                await socket.send(device+command)
+                                message = await asyncio.wait_for(socket.recv(), timeout=5.0)
+                                LOGGER.info(f"received final status of: {message}")
+                    except TimeoutError as e:
+                        LOGGER.error("TimeoutError while receiving status, terminating")
+                        sys.exit(-1)
+                    except Exception as e:
+                        LOGGER.error(f"Exception detected {e}, terminating")
+                        sys.exit(-1)
                     index = deviceTLIndex[device][k]
                     if k == "timeOn":
                         deviceUpdateTimes[device][k] = next_time(currentTime, timeOn[device][index]) + currentTime
