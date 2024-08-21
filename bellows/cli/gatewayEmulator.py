@@ -102,6 +102,7 @@ async def producer_handler(websocket, connectionNumber):
     while True:
         await asyncio.sleep(0.3)
         if lastStatus != lastSentStatus:
+            LOGGER.info(f"gateway sending({connectionNumber}): {json.dumps(lastStatus)}")
             try:
                 await websocket.send(json.dumps(lastStatus))
                 lastSentStatus = copy.deepcopy(lastStatus)
