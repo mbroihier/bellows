@@ -1,15 +1,23 @@
 #!/usr/bin/env -S python
 '''
-HTTP server and Bellows Plus gateway client - services HTTP GETs and issues commands to the Bellows Plus gateway
+HTTP server and gateway client - services HTTP GETs and issues commands to the Bellows Plus gateway
 '''
 import asyncio
 from http import server as httpServer
+import json
 import logging
 import requests
 import signal
 import socket
 import threading
 import time
+import sys
+import websockets
+import click
+import click_log
+from bellows.cli import opts
+from bellows.cli import util
+from websockets.sync.client import connect
 
 LOGGER = logging.getLogger(__name__)
 continueLoop = True
@@ -39,6 +47,29 @@ class HTTPHandler(httpServer.BaseHTTPRequestHandler):
                 self.send_header('Content-Length', len(content))
                 self.end_headers()
                 self.wfile.write(content)
+        elif self.path[-3:] == 'on?' or self.path[-4:] == 'off?' or self.path[-2:] == 'on' or self.path[-3:] == 'off':
+            command = self.path.replace('/', '').replace('?', '')
+            try:
+                with connect("ws://localhost:8126") as conn:
+                    conn.send("http server internal connection request")
+                    conn.socket.settimeout(5.0)
+                    message = conn.recv()
+                    LOGGER.info(f"received initial/connection status of: {message}")
+                    device = command.split('o')[0]
+                    LOGGER.info(f"device: {device}, command: {command}")
+                    if json.loads(message)[device] in command:
+                        LOGGER.warning(f"{json.loads(message)[device]} matches commanded state")
+                    else:
+                        conn.send(command)
+                        message = conn.recv()
+                        LOGGER.info(f"received final status of: {message}")
+            except socket.timeout as e:
+                LOGGER.error("TimeoutError while receiving status, terminating")
+            except Exception as e:
+                LOGGER.error(f"Unexpected Exception detected {e}")
+            self.send_response(302)
+            self.send_header('Location', '/index.html')
+            self.end_headers()
         else:
             self.send_error(404)
             self.end_headers()
@@ -60,11 +91,16 @@ class HTTPServerBackground():
     def shutdown(self):
         self.terminate = True
         
-def main():
+@click.command()
+@click_log.simple_verbosity_option(logging.getLogger(), default="INFO")
+@util.background
+async def main():
     '''
     Test main program for server
     '''
     global continueLoop
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
+                        datefmt=' %Y-%m-%d:%H:%M:%S', level=LOGGER.getEffectiveLevel())
     signal.signal(signal.SIGINT, sigint_handler)
     
     address = ('::', 8124)
@@ -89,4 +125,4 @@ def main():
     LOGGER.debug(f"got {response}")
     backgroundThread.join()
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

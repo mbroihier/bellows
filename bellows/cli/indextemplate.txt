@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <script>
       window.onload = function(){
+	  document.getElementById('wjs').setAttribute('style', 'display: block');
+	  document.getElementById('wojs').setAttribute('style', 'display: none');
 	  var socket = null;
 	  var initialMessage;
 	  let start = function(message) {
@@ -15,7 +17,7 @@
 		  socket.send(initialMessage);
 	      };
 	      socket.onmessage = function(event) {
-		  statusObject = JSON.parse(event.data);
+		  let statusObject = JSON.parse(event.data);
 		  console.log(statusObject)
 		  for (device in statusObject) {
 		      console.log("working with " + device);
@@ -42,7 +44,7 @@
 		  socket = null;
 	      }
 	  }
-	  start("http server connection request");
+	  start("http client connection request");
 	  wssend = function(message) {
 	      try {
 		  console.log("sending " + message);
@@ -77,8 +79,15 @@
     </style>
     <h1> Switches </h1>
     <ul>
-      <div>
-      ***begin insert***
+      <div id="wjs" style="display: none">
+      ***begin insert1***
+      </div>
+    </ul>
+    <ul>
+      <div id="wojs" style="display: block">
+      <form>
+      ***begin insert2***
+      </form>
       </div>
     </ul>
   </body>

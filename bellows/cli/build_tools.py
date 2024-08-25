@@ -116,12 +116,19 @@ def buildHTTPServer(commandList):
     count = 0
     with open("indextemplate.txt", "r", encoding="utf-8") as templateFile:
         for line in templateFile.readlines():
-            if "***begin insert***" in line:
+            if "***begin insert1***" in line:
                 for entry in commandList:
                     if "on" in entry or "off" in entry:
                         name = "name" + str(count)
                         count += 1
                         filledInTemplate.write(f'<li><button id="{entry}" style="visibility: hidden" onclick="wssend(\'{entry}\')" >{name}</button></li>\n')
+            elif "***begin insert2***" in line:
+                count = 0
+                for entry in commandList:
+                    if "on" in entry or "off" in entry:
+                        name = "name" + str(count)
+                        count += 1
+                        filledInTemplate.write(f'<li><button id="{entry}" style="visibility: visible" type="submit" formaction="/{entry}" formmethod="get">{name}</button></li>\n')
             else:
                 filledInTemplate.write(line)
     filledInTemplate.close()
