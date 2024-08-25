@@ -227,8 +227,7 @@ async def timeServer():
                                 message = await asyncio.wait_for(socket.recv(), timeout=5.0)
                                 LOGGER.info(f"received final status of: {message}")
                     except TimeoutError as e:
-                        LOGGER.error("TimeoutError while receiving status, terminating")
-                        sys.exit(-1)
+                        LOGGER.error("TimeoutError while receiving status")
                     except Exception as e:
                         LOGGER.error(f"Exception detected {e}, terminating")
                         sys.exit(-1)
