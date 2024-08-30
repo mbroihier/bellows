@@ -8,7 +8,7 @@ I have added a bellows gateway command, which starts a websocket server on port 
 
 I have added a bellows buildtools command that builds an HTTP server and a time server that both connect to the gateway.  The HTTP server allows users to push buttons to turn on or off ZigBee devices in the network.  The time server can be configured to send commands based on UTC time, local sunrise, or local sunset to turn on or off the ZigBee devices in the network.
 
-##Installation
+## Installation
 
   1) Install Raspbian bullseye lite
   2) Install python3.12
@@ -28,17 +28,18 @@ I have added a bellows buildtools command that builds an HTTP server and a time 
   ```
   4) Make a bellows python virtual environment and clone bellows plus
   ```
-  $ python3.12 -venv bellows
+  $ python3.12 -m venv bellows
   $ cd bellows
+  $ source bin/activate
   $ git clone https://github.com/mbroihier/bellows
   ```
   5) Install python packages
   ```
   $ cd bellows/bellows/cli
-  $ pip3 -r requirements.txt
+  $ pip3 install -r requirements.txt
   ```
 
-##Running bellows plus
+## Running bellows plus
 This assumes that the user has activated the python virtual environment
 
   1) Setup the ZigBee network (note: baud rates and device may vary based on hardware)
@@ -46,6 +47,8 @@ This assumes that the user has activated the python virtual environment
   $ export EZSP_BAUDRATE=115200
   $ export EZSP_DEVICE=/dev/ttyACM0
   $ cd ~/bellows/bellows/bellows/cli
+  $ mkdir ~/.config/bellows
+  $ touch ~/.config/bellows/app.db
   $ bellows permit
   $ bellows buildtools
   ```
