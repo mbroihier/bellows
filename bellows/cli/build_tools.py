@@ -20,9 +20,9 @@ def sigint_handler(signal, frame):
     print("/nshutting down server....")
     continueLoop = False
 
-def buildTimeServer(commandList):
-    filledInTemplate = open("timeserver.txt", "w", encoding="utf-8")
-    with open("timeservertemplate.txt", "r", encoding="utf-8") as templateFile:
+def buildTimedEventGenerator(commandList):
+    filledInTemplate = open("timedEventGenerator.txt", "w", encoding="utf-8")
+    with open("timedeventgeneratortemplate.txt", "r", encoding="utf-8") as templateFile:
         for line in templateFile.readlines():
             if "***begin insert***" in line:
                 devices = []
@@ -140,4 +140,4 @@ async def entry(commandList):
     for entry in commandList:
         LOGGER.info(f"entry: {entry}")
     buildHTTPServer(commandList)
-    buildTimeServer(commandList)
+    buildTimedEventGenerator(commandList)

@@ -1,0 +1,168 @@
+#!/usr/bin/env -S python
+import asyncio
+import calendar
+import logging
+
+import click
+import click_log
+
+import json
+import time
+import sys
+import websockets
+
+from bellows.cli import opts
+from bellows.cli import util
+import timedEventUtilities
+from timedEventUtilities import sunriseSunset
+from timedEventUtilities import daily
+from timedEventUtilities import generalTimeUtilities
+
+LOGGER = logging.getLogger(__name__)
+debug = logging.DEBUG == LOGGER.getEffectiveLevel()
+debugTimeDelta = 0
+
+@click.command()
+@click_log.simple_verbosity_option(logging.getLogger(), default="INFO")
+@util.background
+async def timeServer():
+    ''' Time Server '''
+    global debug
+    global debugTimeDelta
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
+                        datefmt=' %Y-%m-%d:%H:%M:%S', level=LOGGER.getEffectiveLevel())
+    dly = timedEventUtilities.daily(debug)
+    srss = timedEventUtilities.sunriseSunset(debug)
+    # buildTools creates this initially - edit times to the desired values
+    # ***begin insert***
+    # end of the information inserted by buildTools
+    debug = logging.DEBUG == LOGGER.getEffectiveLevel()
+    debugTimeDelta = 10.0
+    gtu = generalTimeUtilities(debug, debugTimeDelta, time.time())
+    # based on current time, update deviceUpdateTimes, and time line index
+    currentTime = gtu.getTime()
+    currentTimeStructure = time.gmtime(currentTime)
+    timeOfDay = currentTimeStructure.tm_hour * 3600 + currentTimeStructure.tm_min * 60 + currentTimeStructure.tm_sec
+    index = 0
+    LOGGER.debug(f"debug: {debug}")
+    for device in devices:
+        for eventType in deviceTLIndex[device]:
+            timeArray = deviceTL[device][eventType][device]
+            found = False
+            for t in timeArray:
+                if t > timeOfDay:
+                    found = True
+                    deviceTLIndex[device][eventType] = index
+                    break
+                index += 1
+            if not found:
+                deviceTLIndex[device][eventType] = 0
+            index = 0
+    for device in deviceTLIndex:
+        LOGGER.info(f"Time line device: {device}")
+        for k, v in deviceTLIndex[device].items():
+            LOGGER.info(f"Time line index - {k}: {v}")
+    for device in deviceTLIndex:
+        for k, v in deviceTLIndex[device].items():
+            if (k == "timeOn") and (len(timeOn[device]) > 0):
+                deviceUpdateTimes[device][k] = dly.nextTime(currentTime, timeOn[device][v]) + currentTime
+            if (k == "timeOff") and (len(timeOff[device]) > 0):
+                deviceUpdateTimes[device][k] = dly.nextTime(currentTime, timeOff[device][v]) + currentTime
+            if (k == "sunriseOn") and (len(sunriseOnOffset[device]) > 0):
+                deviceUpdateTimes[device][k] = srss.nextSunriseEvent(currentTime, sunriseOnOffset[device][v])
+            if (k == "sunriseOff") and (len(sunriseOffOffset[device]) > 0):
+                deviceUpdateTimes[device][k] = srss.nextSunriseEvent(currentTime, sunriseOffOffset[device][v])
+            if (k == "sunsetOn") and (len(sunsetOnOffset[device]) > 0):
+                deviceUpdateTimes[device][k] = srss.nextSunsetEvent(currentTime, sunsetOnOffset[device][v])
+            if (k == "sunsetOff") and (len(sunsetOffOffset[device]) > 0):
+                deviceUpdateTimes[device][k] = srss.nextSunsetEvent(currentTime, sunsetOffOffset[device][v])
+    lastUpdateTime = []
+    for device in deviceUpdateTimes:
+        LOGGER.info(f"Time of first update - device: {device}")
+        for k, v in deviceUpdateTimes[device].items():
+            if v != 0:
+                LOGGER.info(f"Time of first update - {k}: {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(v))}")
+                lastUpdateTime.append(v)
+
+    if debug:
+        testCSVFile = open("testOutput.csv", "w", encoding="utf-8")
+        for device in deviceUpdateTimes:
+            testCSVFile.write("Current Time,")
+            for k, v in deviceUpdateTimes[device].items():
+                if v != 0:
+                    testCSVFile.write(f"{k},")
+        testCSVFile.write("\n")
+        for device in deviceUpdateTimes:
+            testCSVFile.write(f" {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(currentTime))},")
+            for k, v in deviceUpdateTimes[device].items():
+                if v != 0:
+                    testCSVFile.write(f"{v},")
+        testCSVFile.write("\n")
+        testCSVFile.close()
+    while True:
+        if not debug:
+            await asyncio.sleep(1.0)
+        currentTime = gtu.getTime()
+        for device in deviceUpdateTimes:
+            for k, v in deviceUpdateTimes[device].items():
+                if (currentTime >= v) and (v > 0):
+                    if "On" in k:
+                        command = "on"
+                    else:
+                        command = "off"
+                    if not debug:
+                        try:
+                            async with websockets.connect("ws://localhost:8126") as socket:
+                                await socket.send("time server connection request")
+                                message = await asyncio.wait_for(socket.recv(), timeout=1.0)
+                                LOGGER.info(f"received initial/connection status of: {message}")
+                                LOGGER.info(f"device: {device}, command: {command}")
+                                if json.loads(message)[device] == command:
+                                    LOGGER.warning(f"{json.loads(message)[device]} matches commanded state")
+                                else:
+                                    await socket.send(device+command)
+                                    message = await asyncio.wait_for(socket.recv(), timeout=5.0)
+                                    LOGGER.info(f"received final status of: {message}")
+                        except TimeoutError as e:
+                            LOGGER.error("TimeoutError while receiving status")
+                        except Exception as e:
+                            LOGGER.error(f"Exception detected {e}, terminating")
+                            sys.exit(-1)
+                    index = deviceTLIndex[device][k]
+                    if k == "timeOn":
+                        index = (index + 1) % len(timeOn[device])  # go to the next index of the day
+                        deviceUpdateTimes[device][k] = dly.nextTime(currentTime, timeOn[device][index]) + currentTime
+                    if k == "timeOff":
+                        index = (index + 1) % len(timeOff[device])
+                        deviceUpdateTimes[device][k] = dly.nextTime(currentTime, timeOff[device][index]) + currentTime
+                    if k == "sunriseOn":
+                        index = (index + 1) % len(sunriseOnOffset[device])
+                        deviceUpdateTimes[device][k] = srss.nextSunriseEvent(currentTime, sunriseOnOffset[device][index])
+                    if k == "sunriseOff":
+                        index = (index + 1) % len(sunriseOffOffset[device])
+                        deviceUpdateTimes[device][k] = srss.nextSunriseEvent(currentTime, sunriseOffOffset[device][index])
+                    if k == "sunsetOn":
+                        index = (index + 1) % len(sunsetOnOffset[device])
+                        deviceUpdateTimes[device][k] = srss.nextSunsetEvent(currentTime, sunsetOnOffset[device][index])
+                    if k == "sunsetOff":
+                        index = (index + 1) % len(sunsetOffOffset[device])
+                        deviceUpdateTimes[device][k] = srss.nextSunsetEvent(currentTime, sunsetOffOffset[device][index])
+                    deviceTLIndex[device][k] = index
+                    LOGGER.info(f"Time of next update - device {device}  {k} "
+                                 f" {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(deviceUpdateTimes[device][k]))}")
+                    if debug:
+                        lutIndex = 0
+                        testCSVFile = open("testOutput.csv", "a", encoding="utf-8")
+                        for device in deviceUpdateTimes:
+                            testCSVFile.write(f" {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(currentTime))},")
+                            for k, v in deviceUpdateTimes[device].items():
+                                if v != 0:
+                                    testCSVFile.write(f"{v},")
+                                    lastUpdateTime[lutIndex] = v
+                                    lutIndex += 1
+                        testCSVFile.write("\n")
+                        testCSVFile.close()
+    
+if __name__ == "__main__":
+    asyncio.run(timeServer())
+
