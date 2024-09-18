@@ -6,7 +6,7 @@ See that repository for bellows documentation.
 
 I have added a bellows gateway command, which starts a websocket server on port 8126 and accepts zcl like commands from clients.  gateway translates these commands to to bellows zcl commands and executes them.  Updated status information is sent back to the websock clients (all attached).
 
-I have added a bellows buildtools command that builds an HTTP server and a time server that both connect to the gateway.  The HTTP server allows users to push buttons to turn on or off ZigBee devices in the network.  The time server can be configured to send commands based on UTC time, local sunrise, or local sunset to turn on or off the ZigBee devices in the network.
+I have added a bellows buildtools command that builds an HTTP server and a timed event generator that both connect to the gateway.  The HTTP server allows users to push buttons to turn on or off ZigBee devices in the network.  The timed event generator can be configured to send commands based on UTC time, local sunrise, or local sunset to turn on or off the ZigBee devices in the network.
 
 ## Installation
 
@@ -60,11 +60,10 @@ This assumes that the user has activated the python virtual environment
   $ mv httpserver.txt httpserver.py
   $ chmod 755 httpserver.py
   ```
-  5) Edit the timeserver.txt file to add any times you want devices to turn on or off.
-  6) Rename the timeserver.txt file to timeserver.py and change its file mode bits to add execution privilege.
+  5) Edit the timedEventGenerator.txt file to add any times you want devices to turn on or off.
+  6) Rename the timedEventGenerator.txt file to timedEventGenerator.py.
   ```
-  $ mv timeserver.txt timeserver.py
-  $ chmod 755 timeserver.py
+  $ mv timedEventGenerator.txt timedEventGenerator.py
   ```
   7) Start the gateway
   ```
@@ -80,6 +79,6 @@ This assumes that the user has activated the python virtual environment
   ```
   $ source ~/bellows/bin/activate
   $ cd ~/bellows/bellows/bellows/cli
-  $ ./timeserver.py
+  $ ./timedEventGenerator.py
   ```
   
