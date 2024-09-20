@@ -32,9 +32,12 @@ class generalTimeUtilities():
             t = time.time()
         return t
 
-class daily():
+class timedEvent():
     def __init__(self, debug=False):
         self.debug = debug
+        self.sunset = {}
+        self.sunrise = {}
+        self.readSunriseSunsetFiles()
 
     def wallTimeToUnixTime(self, hour, minute, currentTime):
         currentTimeStructure = time.gmtime(currentTime)
@@ -49,42 +52,9 @@ class daily():
                              currentTimeStructure.tm_isdst)
         return calendar.timegm(wallTimeStructure)
                          
-    def nextTime(self, currentTime, eventTime):
-        currentTimeStructure = time.gmtime(currentTime)
-        if currentTimeStructure.tm_hour * 3600 + currentTimeStructure.tm_min * 60 + 30> eventTime:
-            baseStructure = time.gmtime(currentTime + FULL_DAY)
-        else:
-            baseStructure = time.gmtime(currentTime)
-        nextTimeStructure = (baseStructure.tm_year,
-                             baseStructure.tm_mon,
-                             baseStructure.tm_mday,
-                             int(eventTime/3600),
-                             int((eventTime - int(eventTime/3600)*3600)/60),
-                             0,
-                             baseStructure.tm_wday,
-                             baseStructure.tm_yday,
-                             baseStructure.tm_isdst)
-        nextTime = calendar.timegm(nextTimeStructure)
-        LOGGER.debug(f"current time: {currentTime}, next time: {nextTime}")
-        difference = nextTime - currentTime
-        if difference < 0:
-            LOGGER.debug(f"difference is negative {difference}, implies time has already passed - go to next day")
-            waitTime = FULL_DAY + difference
-        elif difference > FULL_DAY:
-            LOGGER.error(f"difference higher than one day {difference}, shouldn't happen")
-            waitTime = difference - FULL_DAY
-        else:
-            waitTime = difference
-        return waitTime
+    def toSeconds(self, hour, minute):
+        return hour*3600 + minute*60
 
-class sunriseSunset():
-    def __init__(self, debug=False):
-        self.debug = debug
-        self.sunset = {}
-        self.sunrise = {}
-        self.readSunriseSunsetFiles()
-
-    
     def readSunriseSunsetFiles(self):
         with open("sunset.txt", "r", encoding="utf-8-sig") as sunset_file:
             for line in sunset_file.readlines():
@@ -198,10 +168,34 @@ class sunriseSunset():
                         return candidateTime
         LOGGER.error("could not find a time")
         return -1
+    def nextWallTimeEvent(self, currentTime, eventTime):
+        currentTimeStructure = time.gmtime(currentTime)
+        if self.toSeconds(currentTimeStructure.tm_hour, currentTimeStructure.tm_min)> eventTime:
+            baseStructure = time.gmtime(currentTime + FULL_DAY)
+        else:
+            baseStructure = time.gmtime(currentTime)
+        nextTimeStructure = (baseStructure.tm_year,
+                             baseStructure.tm_mon,
+                             baseStructure.tm_mday,
+                             int(eventTime/3600),
+                             int((eventTime - int(eventTime/3600)*3600)/60),
+                             0,
+                             baseStructure.tm_wday,
+                             baseStructure.tm_yday,
+                             baseStructure.tm_isdst)
+        return  calendar.timegm(nextTimeStructure)
+
     def nextSunsetEvent(self, currentTime, offsetTime):
         return self.nextSunsetSunriseEvent(currentTime, offsetTime, self.sunset)
     def nextSunriseEvent(self, currentTime, offsetTime):
         return self.nextSunsetSunriseEvent(currentTime, offsetTime, self.sunrise)
+    def nextEvent(self, currentTime, offsetTime, eventType):
+        if "sunrise" in eventType:
+            return self.nextSunriseEvent(currentTime, offsetTime)
+        elif "sunset" in eventType:
+            return self.nextSunsetEvent(currentTime, offsetTime)
+        else:
+            return self.nextWallTimeEvent(currentTime, offsetTime)
 
 @click.command()
 @click.argument("month")
@@ -219,7 +213,7 @@ async def lengthofday(month, day, hour, minute, offsettime):
 
     logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
                         datefmt=' %Y-%m-%d:%H:%M:%S', level=LOGGER.getEffectiveLevel())
-    srss = sunriseSunset(debug)
+    te = timedEvent(debug)
     currentTimeStructure = time.gmtime(time.time())
     wallTimeStructure = (currentTimeStructure.tm_year,
                          int(month),
@@ -232,8 +226,8 @@ async def lengthofday(month, day, hour, minute, offsettime):
     lastSunsetASCII = '0000'
     lastTime = currentTime
     for i in range(366):
-        sunriseTime = srss.nextSunriseEvent(currentTime, int(offsettime))
-        sunsetTime = srss.nextSunsetEvent(currentTime, int(offsettime))
+        sunriseTime = te.nextSunriseEvent(currentTime, int(offsettime))
+        sunsetTime = te.nextSunsetEvent(currentTime, int(offsettime))
         LOGGER.info(f"Event {i:3} calculated at {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(currentTime))} "
                     f"is {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(sunriseTime))}, "
                     f"is {time.strftime('%d %b %Y %H:%M:%S',time.gmtime(sunsetTime))}, "

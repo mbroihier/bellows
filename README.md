@@ -61,9 +61,10 @@ This assumes that the user has activated the python virtual environment
   $ chmod 755 httpserver.py
   ```
   5) Edit the timedEventGenerator.txt file to add any times you want devices to turn on or off.
-  6) Rename the timedEventGenerator.txt file to timedEventGenerator.py.
+  6) Rename the timedEventGenerator.txt file to timedEventGenerator.py and add execution privilege.
   ```
   $ mv timedEventGenerator.txt timedEventGenerator.py
+  $ chomd 755 timedEventGenerator.py
   ```
   7) Start the gateway
   ```
