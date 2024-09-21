@@ -170,7 +170,7 @@ class timedEvent():
         return -1
     def nextWallTimeEvent(self, currentTime, eventTime):
         currentTimeStructure = time.gmtime(currentTime)
-        if self.toSeconds(currentTimeStructure.tm_hour, currentTimeStructure.tm_min)> eventTime:
+        if self.toSeconds(currentTimeStructure.tm_hour, currentTimeStructure.tm_min)+30> eventTime:
             baseStructure = time.gmtime(currentTime + FULL_DAY)
         else:
             baseStructure = time.gmtime(currentTime)
