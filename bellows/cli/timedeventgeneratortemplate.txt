@@ -24,7 +24,7 @@ debugTimeDelta = 0
 @click_log.simple_verbosity_option(logging.getLogger(), default="INFO")
 @util.background
 async def timedEventGenerator():
-    ''' Time Server '''
+    ''' Timed Event Generator '''
     global debug
     global debugTimeDelta
     logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
@@ -94,7 +94,7 @@ async def timedEventGenerator():
                     if not debug:
                         try:
                             async with websockets.connect("ws://localhost:8126") as socket:
-                                await socket.send("time server connection request")
+                                await socket.send("timed event generator connection request")
                                 message = await asyncio.wait_for(socket.recv(), timeout=1.0)
                                 LOGGER.info(f"received initial/connection status of: {message}")
                                 LOGGER.info(f"device: {device}, command: {command}")
