@@ -86,7 +86,7 @@ This assumes that the user has activated the python virtual environment
 ## Sunrise/Sunset Files
 Sunrise and sunset varies based on location.  For the most part, being exact is not necessary.  These tables are meant to be of the form:
 
-'''
+```
 1   1  2331
 1   2  2332
 1   3  2333
@@ -95,7 +95,7 @@ Sunrise and sunset varies based on location.  For the most part, being exact is 
 .
 .
 12 31  2330
-'''
+```
 Where the first number refers to the month, the second the day of the month, and the third the UTC time of day in the format of hour(first two digits) and minute(last two digits).  For February, a 29th day is always to be in this file unless there is no sunset or sunrise on that day ever.  The code will only use February 29th on true leap years.
 
 Because this table and the code is using UTC, there are going to be tables (such as the default txsunrise/set files) that have spots where there are no sunsets or two sunsets in a day.  For instance, February 2ed is missing and October 10th has two entries.  This has to do with the fact that the time between sunsets (or it could happen with sunrises too, but not in Texas) is not going to be a perfect day of 86400 seconds.  When it is shorter than 86400 seconds (days are getting shorter) then when the 0000 to 2359 transition occurs there will be two, in this case, sunsets within the same day.  When the time between sunsets is longer than 86400 (days are getting longer), there will be a day where no sunsets occur.
@@ -106,7 +106,7 @@ Both of these tables have been abstracted such that they don't have to represent
 
 In timedEventGenerator.py, there is a section that looks like this:
 
-'''
+```
     timeOn = {
               "b0:c7:de:ff:fe:52:ca:58": [],
               "34:10:f4:ff:fe:2f:3f:b6": [],
@@ -132,7 +132,7 @@ In timedEventGenerator.py, there is a section that looks like this:
                        "34:10:f4:ff:fe:2f:3f:b6": [],
                       }
 
-'''
+```
 The eight segment hex IDs are the IEEE Zigbee address for a device.  In this example, there are two devices. timeOn/timeOff are used to define times of day one wishes to turn on or off the device.  These times are UTC times second of the day.  So, for instance, 1*3600+30*60 would be 1:30 UTC.  This example has no devices that turn on or off by time of day.
 
 The numbers in the other objects (sunriseOnOffset, sunriseOffOffset, sunsetOnOffset, and sunsetOffOffset) are offsets in seconds from the event time.  So, looking at sunsetOnOffset, one can see that there are two devices being turned on 15 minutes after sunset.  Looking at sunsetOffOffset, one can see that one of the two devices is being turned off 1 hour and 30 minutes after sunset.
@@ -141,4 +141,4 @@ One can have an arbitrary number of on or off commands.  Simply add to the array
 
 ## HTTP Page Customization
 
-The index.txt file can and should be modified so that the canned names installed by bellows buildtools are meaningful.  If, for instance, name0 refers to a light in a office of your home, you might want to change it to office.  If name1 refers to a light in your master bedroom, you might want to change it to master bedroom.  Remember that this file needs to be renamed to index.html so that the HTTP server can use it for building the home page.
+The index.txt file can and should be modified so that the canned names installed by bellows buildtools are meaningful.  If, for instance, name0 & name1 refer to a light in a office of your home, you might want to change them to office on and office off.  If name2 & name3 refer to a light in your master bedroom, you might want to change them to master bedroom on and master bedroom off.  Remember that this file needs to be renamed to index.html so that the HTTP server will use it for building the home page.
