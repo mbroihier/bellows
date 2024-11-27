@@ -22,7 +22,7 @@ def sigint_handler(signal, frame):
     print("/nshutting down server....")
     continueLoop = False
 
-async def entry(commandList):
+async def entry(commandList, app):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
     address = ('', 8125)
     loop = asyncio.get_running_loop()
@@ -50,7 +50,7 @@ async def entry(commandList):
         signal.signal(signal.SIGINT, sigint_handler)
         LOGGER.debug("Starting gateway")
         await wsserver.start_serving()
-        while continueLoop:
+        while continueLoop and app._ezsp.is_ezsp_running:
             await asyncio.sleep(0.1)
             if doCommand:
                 LOGGER.info(f"gateway doing command: {doCommand[0]}")

@@ -399,7 +399,7 @@ async def gateway(ctx, database):
             click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
-        await sf.entry(commandList)
+        await sf.entry(commandList, app)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
