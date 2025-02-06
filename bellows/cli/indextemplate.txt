@@ -21,21 +21,22 @@
 		  console.log(statusObject)
 		  for (device in statusObject) {
 		      console.log("working with " + device);
-		      if (statusObject[device] == 'on') {
-			  console.log("device is " + statusObject[device])
-			  document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
-			  document.getElementById(device+'on').setAttribute('style', 'visibility: hidden');
-		      } else if (statusObject[device] == 'off') {
-			  console.log("device is " + statusObject[device])
-			  document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
-			  document.getElementById(device+'off').setAttribute('style', 'visibility: hidden');
-		      } else if (statusObject[device] == 'unknown') {
-			  console.log("device is " + statusObject[device])
-			  document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
-			  document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
-		      } else {
-			  document.getElementById(device+'on').setAttribute('style', 'visibility: visible');
-			  document.getElementById(device+'off').setAttribute('style', 'visibility: visible');
+		      let onElement = document.getElementById(device+'on')
+		      let offElement = document.getElementById(device+'off')
+		      if ((onElement != null) && (offElement != null)) {
+			  if (statusObject[device] == 'on') {
+			      console.log("device is " + statusObject[device])
+			      offElement.setAttribute('style', 'visibility: visible');
+			      onElement.setAttribute('style', 'visibility: hidden');
+			  } else if (statusObject[device] == 'off') {
+			      console.log("device is " + statusObject[device])
+			      onElement.setAttribute('style', 'visibility: visible');
+			      offElement.setAttribute('style', 'visibility: hidden');
+			  } else if (statusObject[device] == 'unknown') {
+			      console.log("device is " + statusObject[device])
+			      onElement.setAttribute('style', 'visibility: visible');
+			      offElement.setAttribute('style', 'visibility: visible');
+			  }
 		      }
 		  }
 	      }

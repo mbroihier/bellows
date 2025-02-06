@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      window.onload = function(){
+	  document.getElementById('wjs').setAttribute('style', 'display: block');
+	  document.getElementById('wojs').setAttribute('style', 'display: none');
+	  var socket = null;
+	  var initialMessage;
+	  let start = function(message) {
+	      initialMessage = message;
+	      socket = new WebSocket("ws://192.168.1.224:8126");
+	      
+	      socket.onopen = function(e) {
+		  console.log("ws connection made");
+		  socket.send(initialMessage);
+	      };
+	      socket.onmessage = function(event) {
+		  let statusObject = JSON.parse(event.data);
+		  console.log(statusObject)
+		  
+		  for (device in statusObject) {
+		      console.log("working with " + device);
+		      let targetElement = document.getElementById(device+'setCT 3000')
+		      if (targetElement != null) {
+			  targetElement.setAttribute('style', 'visibility: visible');
+		      }
+		      targetElement = document.getElementById(device+'setCT 3600')
+		      if (targetElement != null) {
+			  targetElement.setAttribute('style', 'visibility: visible');
+		      }
+		      targetElement = document.getElementById(device+'setCT 4000')
+		      if (targetElement != null) {
+			  targetElement.setAttribute('style', 'visibility: visible');
+		      }
+		      targetElement = document.getElementById(device+'setCT 4600')
+		      if (targetElement != null) {
+			  targetElement.setAttribute('style', 'visibility: visible');
+		      }
+		      targetElement = document.getElementById(device+'setCT 5000')
+		      if (targetElement != null) {
+			  targetElement.setAttribute('style', 'visibility: visible');
+		      }
+		      targetElement = document.getElementById(device+'setCT 5600')
+		      if (targetElement != null) {
+			  targetElement.setAttribute('style', 'visibility: visible');
+		      }
+		  }
+	      }
+	      socket.onclose = function(e) {
+		  console.log("didn't expect close");
+		  socket = null;
+	      }
+	  }
+	  start("http client connection request");
+	  wssend = function(message) {
+	      try {
+		  console.log("sending " + message);
+		  socket.send(message);
+	      } catch (error) {
+		  console.log("websocket send failed: " + error);
+		  start(message);
+	      }
+	  }
+      }
+      </script>
+    <title> Color Temperature </title>
+  </head>
+  <body>
+    <style>
+      div {
+	  width: 100%;
+	  height: 300px;
+	  text-align: center;
+      }
+      ul {
+	  list-style-type: none;
+      }
+      button {
+	  width: 35%;
+	  padding: 4px 4px;
+	  border: 3px solid black;
+	  margin: 2px 2px;
+	  font-size: 50px;
+	  border-radius: 10px;
+      }
+    </style>
+    <h1> Color Temperature </h1>
+    <ul>
+      <div id="wjs" style="display: none">
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 3000')" >3000</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3600" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 3600')" >3600</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 4000')" >4000</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4600" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 4600')" >4600</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 5000')" >5000</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5600" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 5600')" >5600</button></li>
+      </div>
+    </ul>
+    <ul>
+      <div id="wojs" style="display: block">
+      <form>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 3000" formmethod="get">3000</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3600" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 3600" formmethod="get">3600</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 4000" formmethod="get">4000</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4600" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 4600" formmethod="get">4600</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 5000" formmethod="get">5000</button></li>
+<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5600" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 5600" formmethod="get">5600</button></li>
+      </form>
+      </div>
+    </ul>
+  </body>
+</html>

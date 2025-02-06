@@ -91,9 +91,8 @@ def permit_with_key(ctx, database, duration_s, node, code):
 
 @main.command()
 @opts.database_file
-@click.pass_context
 @util.background
-async def devices(ctx, database):
+async def devices(database):
     """Show device database"""
 
     def print_clusters(title, clusters):
@@ -108,7 +107,7 @@ async def devices(ctx, database):
         bellows.config.CONF_DEVICE: {bellows.config.CONF_DEVICE_PATH: "/dev/null"},
     }
     config = bellows.config.CONFIG_SCHEMA(config)
-    reader = bellows.zigbee.application.ControllerApplication.new(config, start_radio=False) 
+    reader = bellows.zigbee.application.ControllerApplication.new(config, start_radio=False)
     app = await reader
     for ieee, dev in app.devices.items():
         click.echo("Device:")
@@ -363,17 +362,18 @@ async def script(ctx, database):
 
     app = ctx.obj["app"]
     click.echo("Available nodes to talk to that have on/off switches")
-    commandList = {}  # build a command list for all nodes that can be turned on and off
+    command_list = {}  # build a command list for all nodes that can be turned on and off
     for node in app.devices:
         if app.devices[node].nwk != 0:
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            commandList[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
-            commandList[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
-            commandList[repr(app.devices[node].ieee)+'status'] = getattr(cluster, 'read_attributes')
+            command_list[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
+            command_list[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
+            command_list[repr(app.devices[node].ieee)+'status'] = getattr(cluster,
+                                                                          'read_attributes')
             click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
-        await sf.entry(commandList)
+        await sf.entry(command_list)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
@@ -389,17 +389,28 @@ async def gateway(ctx, database):
 
     app = ctx.obj["app"]
     click.echo("Available nodes to talk to that have on/off switches")
-    commandList = {}  # build a command list for all nodes that can be turned on and off
+    command_list = {}  # build a command list for all nodes that can be turned on and off
     for node in app.devices:
         if app.devices[node].nwk != 0:
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            commandList[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
-            commandList[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
-            commandList[repr(app.devices[node].ieee)+'status'] = getattr(cluster, 'read_attributes')
+            command_list[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
+            command_list[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
+            command_list[repr(app.devices[node].ieee)+'status'] = getattr(cluster,
+                                                                          'read_attributes')
+            if app.devices[node].model == 'AE 280 C':
+                dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 768)
+                command_list[repr(app.devices[node].ieee)+'readCT'] = getattr(cluster,
+                                                                             'read_attributes')
+                command_list[repr(app.devices[node].ieee)+'setCT'] = getattr(cluster, 'command')
+                dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 8)
+                command_list[repr(app.devices[node].ieee)+'readLevel'] = getattr(cluster,
+                                                                                'read_attributes')
+                command_list[repr(app.devices[node].ieee)+'setLevel'] = getattr(cluster, 'command')
+
             click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
-        await sf.entry(commandList, app)
+        await sf.entry(command_list, app)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
@@ -416,17 +427,18 @@ async def buildTools(ctx, database):
 
     app = ctx.obj["app"]
     click.echo("Available nodes to talk to that have on/off switches")
-    commandList = {}  # build a command list for all nodes that can be turned on and off
+    command_list = {}  # build a command list for all nodes that can be turned on and off
     for node in app.devices:
         if app.devices[node].nwk != 0:
             dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            commandList[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
-            commandList[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
-            commandList[repr(app.devices[node].ieee)+'status'] = getattr(cluster, 'read_attributes')
+            command_list[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
+            command_list[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
+            command_list[repr(app.devices[node].ieee)+'status'] = getattr(cluster,
+                                                                          'read_attributes')
             click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
-        await bf.entry(commandList)
+        await bf.entry(command_list)
     except ValueError as e:
         click.echo(e)
     except zigpy.exceptions.ZigbeeException as e:
