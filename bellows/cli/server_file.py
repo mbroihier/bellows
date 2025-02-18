@@ -12,9 +12,7 @@ from websockets.server import serve as wsserve
 # pylint: disable-msg=C0103
 # pylint: disable-msg=W1203
 LOGGER = logging.getLogger(__name__)
-lastStatus = {}
-doCommand = []
-connection_number = 0
+
 def get_address(command):
     '''
     Get the address from a command
@@ -50,29 +48,31 @@ class InterprocessObjects ():
 
     def __init__(self):
         '''
-        Contstructor - all objects are truely defined outside of __init__ since this object is a singleton
+        Contstructor - all attributes are truely defined outside of __init__
         '''
         if not hasattr(self, 'commandList'):
             #  only do this the first time
             self.commandList = None
             self.lastStatus = None
             self.continue_loop = None
-            self.connection_number = 0
+            self.connection_number = None
+            self.doCommand = None
 
 async def entry(commandList, app):
     '''
     Entry of gateway via asnycio environment
     '''
-    debug = logging.DEBUG == LOGGER.getEffectiveLevel()
     address = ('', 8125)
-    global lastStatus
     min_mireds = 0
     max_mireds = 0
     light_level = 0
     ipo = InterprocessObjects()
+    # setup attributes of Interprocess Object
     ipo.commandList = commandList
-    ipo.lastStatus = lastStatus
     ipo.continue_loop = True
+    ipo.connection_number = 0
+    ipo.doCommand = []
+    ipo.lastStatus = {}
     LOGGER.debug(f"command list: {commandList}, continue_loop: {ipo.continue_loop},"
                  " lastStatus: {ipo.lastStatus}")
     for command in commandList:
@@ -87,7 +87,7 @@ async def entry(commandList, app):
             except Exception as e:
                 LOGGER.debug(f"Exception: {e}")
                 state = 'unknown'
-            lastStatus[get_address(command)] = state
+            ipo.lastStatus[get_address(command)] = state
         if 'readCT' in command:
             try:
                 v = await commandList[command]([3,4,7,16395,16396])
@@ -106,12 +106,12 @@ async def entry(commandList, app):
                 light_level = 0
                 x = 0
                 y = 0
-            lastStatus[get_address(command)+'X'] = x
-            lastStatus[get_address(command)+'Y'] = y
-            lastStatus[get_address(command)+'Level'] = light_level
-            lastStatus[get_address(command)+'minMireds'] = min_mireds
-            lastStatus[get_address(command)+'maxMireds'] = max_mireds
-            lastStatus[get_address(command)+'CT'] = color_temperature
+            ipo.lastStatus[get_address(command)+'X'] = x
+            ipo.lastStatus[get_address(command)+'Y'] = y
+            ipo.lastStatus[get_address(command)+'Level'] = light_level
+            ipo.lastStatus[get_address(command)+'minMireds'] = min_mireds
+            ipo.lastStatus[get_address(command)+'maxMireds'] = max_mireds
+            ipo.lastStatus[get_address(command)+'CT'] = color_temperature
 
     LOGGER.debug("Creating gateway")
     wsserver = await wsserve(websocketHandler, "", 8126)
@@ -121,42 +121,42 @@ async def entry(commandList, app):
         await wsserver.start_serving()
         while ipo.continue_loop and app._ezsp.is_ezsp_running:
             await asyncio.sleep(0.1)
-            if doCommand:
-                LOGGER.info(f"gateway doing command: {doCommand[0]}")
-                if 'status' in doCommand[0]:
+            if ipo.doCommand:
+                LOGGER.info(f"gateway doing command: {ipo.doCommand[0]}")
+                if 'status' in ipo.doCommand[0]:
                     try:
-                        v = await commandList[doCommand[0]]([0], allow_cache=False)
+                        v = await commandList[ipo.doCommand[0]]([0], allow_cache=False)
                         LOGGER.debug(f"gateway status: {v}")
                         if v[0][0] is False:
-                            lastStatus[get_address(doCommand[0])] = 'off'
+                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'off'
                         else:
-                            lastStatus[get_address(doCommand[0])] = 'on'
+                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'on'
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        lastStatus[get_address(doCommand[0])] = 'unknown'
-                elif 'readCT' in doCommand[0]:
+                        ipo.lastStatus[get_address(ipo.doCommand[0])] = 'unknown'
+                elif 'readCT' in ipo.doCommand[0]:
                     try:
-                        v = await commandList[doCommand[0]]([7])
+                        v = await commandList[ipo.doCommand[0]]([7])
                         LOGGER.debug(f"gateway status: {v[0][7]}")
-                        lastStatus[get_address(doCommand[0])+'CT'] = v[0][7]
+                        ipo.lastStatus[get_address(ipo.doCommand[0])+'CT'] = v[0][7]
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        lastStatus[get_address(doCommand[0])] = 'unknown'
-                        lastStatus[get_address(doCommand[0])+'CT'] = 0
-                elif 'setCT' in doCommand[0]:
+                        ipo.lastStatus[get_address(ipo.doCommand[0])] = 'unknown'
+                        ipo.lastStatus[get_address(ipo.doCommand[0])+'CT'] = 0
+                elif 'setCT' in ipo.doCommand[0]:
                     try:
                         step_color_temp = 0x4c  # as defined in spec
-                        new_temperature = int(doCommand[0].split(' ')[-1])
-                        address = get_address(doCommand[0])
+                        new_temperature = int(ipo.doCommand[0].split(' ')[-1])
+                        address = get_address(ipo.doCommand[0])
                         if new_temperature > 0:
                             new_temperature_mireds = int((1000000 / new_temperature))
                         else:
                             new_temperature_mireds = 0
-                        if lastStatus[address] == 'on':
-                            if (lastStatus[address+'minMireds'] < new_temperature_mireds <
-                                lastStatus[address+'maxMireds']):
+                        if ipo.lastStatus[address] == 'on':
+                            if (ipo.lastStatus[address+'minMireds'] < new_temperature_mireds <
+                                ipo.lastStatus[address+'maxMireds']):
                                 LOGGER.debug(f"new temperature in mireds: {new_temperature_mireds}")
-                                old_color_temp_mireds = lastStatus[address+'CT']
+                                old_color_temp_mireds = ipo.lastStatus[address+'CT']
                                 LOGGER.debug(f"old temperature in mireds: {old_color_temp_mireds}")
                                 if old_color_temp_mireds > new_temperature_mireds:
                                     step = old_color_temp_mireds - new_temperature_mireds
@@ -164,11 +164,11 @@ async def entry(commandList, app):
                                 else:
                                     step = new_temperature_mireds - old_color_temp_mireds
                                     direction = 'Up'
-                                v = await commandList[doCommand[0].split(' ')[0]](step_color_temp,
+                                v = await commandList[ipo.doCommand[0].split(' ')[0]](step_color_temp,
                                                                                   direction, step,
                                                                                   1, 0, 0)
                                 LOGGER.warning(f"gateway status: {v}")
-                                lastStatus[address+'CT'] = new_temperature_mireds
+                                ipo.lastStatus[address+'CT'] = new_temperature_mireds
                             else:
                                 LOGGER.warning("temperature out of range, not changed")
                         else:
@@ -176,14 +176,14 @@ async def entry(commandList, app):
 
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} color temperature not changed")
-                elif 'setLevel' in doCommand[0]:
+                elif 'setLevel' in ipo.doCommand[0]:
                     try:
                         step_level = 0x02  # as defined in spec
-                        new_level = int(doCommand[0].split(' ')[-1])
-                        old_level = lastStatus[get_address(doCommand[0])+'Level']
+                        new_level = int(ipo.doCommand[0].split(' ')[-1])
+                        old_level = ipo.lastStatus[get_address(ipo.doCommand[0])+'Level']
                         LOGGER.warning(f"new light level: {new_level}")
                         LOGGER.warning(f"old light level: {old_level}")
-                        if lastStatus[get_address(doCommand[0])] == 'on':
+                        if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'on':
                             if 0 < new_level < 255:
                                 if old_level > new_level:
                                     step = old_level - new_level
@@ -191,7 +191,7 @@ async def entry(commandList, app):
                                 else:
                                     step = new_level - old_level
                                     direction = 'Up'
-                                v = await commandList[doCommand[0].split(' ')[0]](step_level,
+                                v = await commandList[ipo.doCommand[0].split(' ')[0]](step_level,
                                                                               direction, step, 1)
                                 LOGGER.warning(f"gateway status: {v}")
                             else:
@@ -203,21 +203,21 @@ async def entry(commandList, app):
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} light level not changed")
                         new_level = old_level
-                    lastStatus[get_address(doCommand[0])+'Level'] = new_level
-                elif ('on' in doCommand[0] or 'off' in doCommand[0]):
+                    ipo.lastStatus[get_address(ipo.doCommand[0])+'Level'] = new_level
+                elif ('on' in ipo.doCommand[0] or 'off' in ipo.doCommand[0]):
                     try:
-                        v = await commandList[doCommand[0]]()
+                        v = await commandList[ipo.doCommand[0]]()
                         LOGGER.debug(f"gateway status: {v}")
                         if v.as_tuple()[0] == 0:
-                            lastStatus[get_address(doCommand[0])] = 'off'
+                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'off'
                         else:
-                            lastStatus[get_address(doCommand[0])] = 'on'
+                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'on'
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        lastStatus[get_address(doCommand[0])] = 'unknown'
+                        ipo.lastStatus[get_address(ipo.doCommand[0])] = 'unknown'
                 else:
-                    LOGGER.warning(f"logic error {doCommand[0]} is only partially implemented")
-                del doCommand[0]
+                    LOGGER.warning(f"logic error {ipo.doCommand[0]} is only partially implemented")
+                del ipo.doCommand[0]
         LOGGER.info(f"gateway terminating - continue_loop: {ipo.continue_loop},"
                     " controller status: {app._ezsp.is_ezsp_running}")
 
@@ -241,9 +241,8 @@ async def consumer_handler(websocket, connection_number):
     Capture incoming bellows ZCL commands and queue them for processing
     '''
     ipo = InterprocessObjects()
-    global doCommand
-    LOGGER.info(f"gateway sending ({connection_number}): {json.dumps(lastStatus)}")
-    await websocket.send(json.dumps(lastStatus))  # this message is sent on connection
+    LOGGER.info(f"gateway sending ({connection_number}): {json.dumps(ipo.lastStatus)}")
+    await websocket.send(json.dumps(ipo.lastStatus))  # this message is sent on connection
     try:
         async for message in websocket:
             LOGGER.info(f"gateway connection received ({connection_number}): {message}")
@@ -252,7 +251,7 @@ async def consumer_handler(websocket, connection_number):
                     message = await websocket.recv()
                     LOGGER.info(f"gateway received({connection_number}): {message}")
                     if message.split(' ')[0] in ipo.commandList:
-                        doCommand.append(message)
+                        ipo.doCommand.append(message)
                     else:
                         LOGGER.warning("bad command read from websocket, closing client"
                                        f"  connection({connection_number})")
@@ -271,14 +270,15 @@ async def producer_handler(websocket, connection_number):
     '''
     Produce status messages for clients waiting for status changes
     '''
-    lastSentStatus = copy.deepcopy(lastStatus)
+    ipo = InterprocessObjects()
+    lastSentStatus = copy.deepcopy(ipo.lastStatus)
     while True:
         await asyncio.sleep(0.3)
-        if lastStatus != lastSentStatus:
-            LOGGER.info(f"gateway sending({connection_number}): {json.dumps(lastStatus)}")
+        if ipo.lastStatus != lastSentStatus:
+            LOGGER.info(f"gateway sending({connection_number}): {json.dumps(ipo.lastStatus)}")
             try:
-                await websocket.send(json.dumps(lastStatus))
-                lastSentStatus = copy.deepcopy(lastStatus)
+                await websocket.send(json.dumps(ipo.lastStatus))
+                lastSentStatus = copy.deepcopy(ipo.lastStatus)
             except Exception as e:
                 LOGGER.warning(f"{e} - can not write to websocket, closing client connection"
                                f"({connection_number})")

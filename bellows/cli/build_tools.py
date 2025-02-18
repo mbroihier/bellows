@@ -13,6 +13,7 @@ def getDevice(command):
     result = command.replace('on', '')
     result = result.replace('off', '')
     result = result.replace('status', '')
+    result = result.replace('setCT', '')
     return result
 
 def sigint_handler(signal, frame):
@@ -87,7 +88,7 @@ def buildTimedEventGenerator(commandList):
             else:
                 filledInTemplate.write(line)
     filledInTemplate.close()
-    
+
 def buildHTTPServer(commandList):
     filledInTemplate = open("httpserver.txt", "w", encoding="utf-8")
     with open("httpservertemplate.txt", "r", encoding="utf-8") as templateFile:
@@ -133,6 +134,17 @@ def buildHTTPServer(commandList):
                 filledInTemplate.write(line)
     filledInTemplate.close()
                 
+def buildLTHTML(commandList):
+    device_list = []
+    for command in commandList:
+        if 'setCT' in command:
+            device_list.append(getDevice(command))
+    for device in device_list:
+        with (open("lttemplate.txt", "r", encoding="utf-8") as templateFile,
+              open(f"lt{device}.txt", "w", encoding="utf-8") as filledInTemplate):
+            for line in templateFile.readlines():
+                line = line.replace('b0:c7:de:ff:fe:52:ca:58', device)
+                filledInTemplate.write(line)
 
 async def entry(commandList):
     debug = logging.DEBUG == LOGGER.getEffectiveLevel()
@@ -141,3 +153,4 @@ async def entry(commandList):
         LOGGER.info(f"entry: {entry}")
     buildHTTPServer(commandList)
     buildTimedEventGenerator(commandList)
+    buildLTHTML(commandList)

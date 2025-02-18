@@ -435,6 +435,16 @@ async def buildTools(ctx, database):
             command_list[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
             command_list[repr(app.devices[node].ieee)+'status'] = getattr(cluster,
                                                                           'read_attributes')
+            if app.devices[node].model == 'AE 280 C':
+                dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 768)
+                command_list[repr(app.devices[node].ieee)+'readCT'] = getattr(cluster,
+                                                                             'read_attributes')
+                command_list[repr(app.devices[node].ieee)+'setCT'] = getattr(cluster, 'command')
+                dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 8)
+                command_list[repr(app.devices[node].ieee)+'readLevel'] = getattr(cluster,
+                                                                                'read_attributes')
+                command_list[repr(app.devices[node].ieee)+'setLevel'] = getattr(cluster, 'command')
+
             click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
