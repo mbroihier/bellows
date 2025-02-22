@@ -8,6 +8,8 @@ I have added a bellows gateway command, which starts a websocket server on port 
 
 I have added a bellows buildtools command that builds an HTTP server and a timed event generator that both connect to the gateway.  The HTTP server allows users to push buttons to turn on or off ZigBee devices in the network.  The timed event generator can be configured to send commands based on UTC time, local sunrise, or local sunset to turn on or off the ZigBee devices in the network.
 
+The current repository is a prototype of version 2 which adds a framework to go beyond on/off zcl commands. Repository 026cccb1a5d79392c585b1c9ec90c6bc01719ba4 is version 1 which matches the original requirements (bellows-requirements.pdf).
+
 ## Installation
 
   1) Install Raspbian bullseye lite
