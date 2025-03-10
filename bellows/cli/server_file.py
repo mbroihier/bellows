@@ -7,6 +7,7 @@ import copy
 import json
 import logging
 import signal
+import time
 from websockets.server import serve as wsserve
 
 # pylint: disable-msg=C0103
@@ -21,6 +22,7 @@ def get_address(command):
     result = result.replace('off', '')
     result = result.replace('status', '')
     result = result.replace('readCT', '')
+    result = result.replace('readLevel', '')
     result = result.replace('setCT', '')
     result = result.replace('setLevel', '')
     result = result.split(' ')[0]
@@ -57,15 +59,12 @@ class InterprocessObjects ():
             self.continue_loop = None
             self.connection_number = None
             self.doCommand = None
+            self.last_update_time = None
 
 async def entry(commandList, app):
     '''
     Entry of gateway via asnycio environment
     '''
-    address = ('', 8125)
-    min_mireds = 0
-    max_mireds = 0
-    light_level = 0
     ipo = InterprocessObjects()
     # setup attributes of Interprocess Object
     ipo.commandList = commandList
@@ -73,46 +72,71 @@ async def entry(commandList, app):
     ipo.connection_number = 0
     ipo.doCommand = []
     ipo.lastStatus = {}
+    ipo.last_update_time = 0
+
+    def update_status_template():
+        '''
+        Template for creating an update_status generator
+        '''
+        ipo = InterprocessObjects()
+        while True:
+            (device, field, value) = yield
+            ipo.lastStatus[device+field] = value
+            ipo.last_update_time = time.time()
+
+    update_status = update_status_template()
+    next(update_status)  # start the generator
     LOGGER.debug(f"command list: {commandList}, continue_loop: {ipo.continue_loop},"
                  " lastStatus: {ipo.lastStatus}")
-    for command in commandList:
-        if 'status' in command:
-            try:
-                v = await commandList[command]([0], allow_cache=False)
-                LOGGER.debug(f"status: {v}")
-                if v[0][0] is True:
-                    state = 'on'
-                else:
-                    state = 'off'
-            except Exception as e:
-                LOGGER.debug(f"Exception: {e}")
-                state = 'unknown'
-            ipo.lastStatus[get_address(command)] = state
-        if 'readCT' in command:
-            try:
-                v = await commandList[command]([3,4,7,16395,16396])
-                LOGGER.debug(f"color temperature: {v}")
-                color_temperature = v[0][7]
-                x = v[0][3]
-                y = v[0][4]
-                min_mireds = v[0][16395]
-                max_mireds = v[0][16396]
-                v = await commandList[get_address(command)+'readLevel']([0])
-                LOGGER.debug(f"light level: {v}")
-                light_level = v[0][0]
-            except Exception as e:
-                LOGGER.debug(f"Exception: {e}")
-                color_temperature = 0
-                light_level = 0
-                x = 0
-                y = 0
-            ipo.lastStatus[get_address(command)+'X'] = x
-            ipo.lastStatus[get_address(command)+'Y'] = y
-            ipo.lastStatus[get_address(command)+'Level'] = light_level
-            ipo.lastStatus[get_address(command)+'minMireds'] = min_mireds
-            ipo.lastStatus[get_address(command)+'maxMireds'] = max_mireds
-            ipo.lastStatus[get_address(command)+'CT'] = color_temperature
+    async def init_status(address=None):
+        '''
+        Initialize status object
+        '''
+        for command in commandList:
+            if address is not None:
+                if not address in command:
+                    continue
+            addr = get_address(command)
+            if 'status' in command:
+                try:
+                    v = await commandList[command]([0], allow_cache=False)
+                    LOGGER.debug(f"status: {v}")
+                    if v[0][0] is True:
+                        state = 'on'
+                    else:
+                        state = 'off'
+                except Exception as e:
+                    LOGGER.debug(f"Exception: {e}")
+                    state = 'unknown'
+                update_status.send((addr, "", state))
+            if 'readCT' in command:
+                try:
+                    v = await commandList[command]([3,4,7,16395,16396])
+                    LOGGER.debug(f"color temperature: {v}")
+                    color_temperature = v[0][7]
+                    x = v[0][3]
+                    y = v[0][4]
+                    min_mireds = v[0][16395]
+                    max_mireds = v[0][16396]
+                    v = await commandList[addr+'readLevel']([0])
+                    LOGGER.debug(f"light level: {v}")
+                    light_level = v[0][0]
+                except Exception as e:
+                    LOGGER.debug(f"Exception: {e}")
+                    color_temperature = 0
+                    light_level = 0
+                    x = 0
+                    y = 0
+                    min_mireds = 0
+                    max_mireds = 0
+                update_status.send((addr, 'X', x))
+                update_status.send((addr, 'Y', y))
+                update_status.send((addr, 'Level', light_level))
+                update_status.send((addr, 'minMireds', min_mireds))
+                update_status.send((addr, 'maxMireds', max_mireds))
+                update_status.send((addr, 'CT', color_temperature))
 
+    await init_status()
     LOGGER.debug("Creating gateway")
     wsserver = await wsserve(websocketHandler, "", 8126)
     async with wsserver:
@@ -128,21 +152,21 @@ async def entry(commandList, app):
                         v = await commandList[ipo.doCommand[0]]([0], allow_cache=False)
                         LOGGER.debug(f"gateway status: {v}")
                         if v[0][0] is False:
-                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'off'
+                            update_status.send((get_address(ipo.doCommand[0]), "", 'off'))
                         else:
-                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'on'
+                            update_status.send((get_address(ipo.doCommand[0]), "", 'on'))
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        ipo.lastStatus[get_address(ipo.doCommand[0])] = 'unknown'
+                        update_status.send((get_address(ipo.doCommand[0]), "", 'unknown'))
                 elif 'readCT' in ipo.doCommand[0]:
                     try:
                         v = await commandList[ipo.doCommand[0]]([7])
                         LOGGER.debug(f"gateway status: {v[0][7]}")
-                        ipo.lastStatus[get_address(ipo.doCommand[0])+'CT'] = v[0][7]
+                        update_status.send((get_address(ipo.doCommand[0]), 'CT', v[0][7]))
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        ipo.lastStatus[get_address(ipo.doCommand[0])] = 'unknown'
-                        ipo.lastStatus[get_address(ipo.doCommand[0])+'CT'] = 0
+                        update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
+                        update_status.send((get_address(ipo.doCommand[0]), 'CT', 0))
                 elif 'setCT' in ipo.doCommand[0]:
                     try:
                         step_color_temp = 0x4c  # as defined in spec
@@ -164,11 +188,12 @@ async def entry(commandList, app):
                                 else:
                                     step = new_temperature_mireds - old_color_temp_mireds
                                     direction = 'Up'
-                                v = await commandList[ipo.doCommand[0].split(' ')[0]](step_color_temp,
-                                                                                  direction, step,
-                                                                                  1, 0, 0)
+                                v = await commandList[ipo.doCommand[0].split(' ')[0]](
+                                    step_color_temp,
+                                    direction, step,
+                                    1, 0, 0)
                                 LOGGER.warning(f"gateway status: {v}")
-                                ipo.lastStatus[address+'CT'] = new_temperature_mireds
+                                update_status.send((address, 'CT', new_temperature_mireds))
                             else:
                                 LOGGER.warning("temperature out of range, not changed")
                         else:
@@ -176,6 +201,15 @@ async def entry(commandList, app):
 
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} color temperature not changed")
+                elif 'readLevel' in ipo.doCommand[0]:
+                    try:
+                        v = await commandList[ipo.doCommand[0]]([0])
+                        LOGGER.debug(f"gateway status: {v[0][0]}")
+                        update_status.send((get_address(ipo.doCommand[0]), 'Level', v[0][0]))
+                    except Exception as e:
+                        LOGGER.debug(f"gateway Exception: {e}")
+                        update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
+                        update_status.send((get_address(ipo.doCommand[0]), 'Level', 0))
                 elif 'setLevel' in ipo.doCommand[0]:
                     try:
                         step_level = 0x02  # as defined in spec
@@ -203,18 +237,21 @@ async def entry(commandList, app):
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} light level not changed")
                         new_level = old_level
-                    ipo.lastStatus[get_address(ipo.doCommand[0])+'Level'] = new_level
+                    update_status.send((get_address(ipo.doCommand[0]), 'Level', new_level))
                 elif ('on' in ipo.doCommand[0] or 'off' in ipo.doCommand[0]):
                     try:
                         v = await commandList[ipo.doCommand[0]]()
                         LOGGER.debug(f"gateway status: {v}")
+                        if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'unknown':
+                            LOGGER.warning("initialing device from an unknown state")
+                            await init_status(get_address(ipo.doCommand[0]))
                         if v.as_tuple()[0] == 0:
-                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'off'
+                            update_status.send((get_address(ipo.doCommand[0]), '', 'off'))
                         else:
-                            ipo.lastStatus[get_address(ipo.doCommand[0])] = 'on'
+                            update_status.send((get_address(ipo.doCommand[0]), '', 'on'))
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        ipo.lastStatus[get_address(ipo.doCommand[0])] = 'unknown'
+                        update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
                 else:
                     LOGGER.warning(f"logic error {ipo.doCommand[0]} is only partially implemented")
                 del ipo.doCommand[0]
@@ -251,6 +288,7 @@ async def consumer_handler(websocket, connection_number):
                     message = await websocket.recv()
                     LOGGER.info(f"gateway received({connection_number}): {message}")
                     if message.split(' ')[0] in ipo.commandList:
+                        ipo.last_update_time = 0
                         ipo.doCommand.append(message)
                     else:
                         LOGGER.warning("bad command read from websocket, closing client"
@@ -274,7 +312,7 @@ async def producer_handler(websocket, connection_number):
     lastSentStatus = copy.deepcopy(ipo.lastStatus)
     while True:
         await asyncio.sleep(0.3)
-        if ipo.lastStatus != lastSentStatus:
+        if ipo.lastStatus != lastSentStatus and ipo.last_update_time != 0:
             LOGGER.info(f"gateway sending({connection_number}): {json.dumps(ipo.lastStatus)}")
             try:
                 await websocket.send(json.dumps(ipo.lastStatus))

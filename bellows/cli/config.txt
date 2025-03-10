@@ -1,0 +1,8 @@
+#endpoint cluster command          command-alias  status
+1,        6,      on,              on,            ""
+1,        6,      off,             off,           ""
+1,        6,      read_attributes, status,        ""
+1,        8,      read_attributes, readLevel,     Level
+1,        8,      command,         setLevel,      Level
+1,        768,    read_attributes, readCT,        CT, X, Y, minMireds, maxMireds
+1,        768,    command,         setCT,         CT

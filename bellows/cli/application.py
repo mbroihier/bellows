@@ -2,6 +2,7 @@
 
 import asyncio
 import binascii
+import re
 
 import click
 import zigpy.config
@@ -392,21 +393,19 @@ async def gateway(ctx, database):
     command_list = {}  # build a command list for all nodes that can be turned on and off
     for node in app.devices:
         if app.devices[node].nwk != 0:
-            dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 6)
-            command_list[repr(app.devices[node].ieee)+'on'] = getattr(cluster, 'on')
-            command_list[repr(app.devices[node].ieee)+'off'] = getattr(cluster, 'off')
-            command_list[repr(app.devices[node].ieee)+'status'] = getattr(cluster,
-                                                                          'read_attributes')
-            if app.devices[node].model == 'AE 280 C':
-                dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 768)
-                command_list[repr(app.devices[node].ieee)+'readCT'] = getattr(cluster,
-                                                                             'read_attributes')
-                command_list[repr(app.devices[node].ieee)+'setCT'] = getattr(cluster, 'command')
-                dev, endpoint, cluster = util.get_in_cluster(app, node, 1, 8)
-                command_list[repr(app.devices[node].ieee)+'readLevel'] = getattr(cluster,
-                                                                                'read_attributes')
-                command_list[repr(app.devices[node].ieee)+'setLevel'] = getattr(cluster, 'command')
-
+            with open('config.txt', 'r', encoding='utf-8') as conf:
+                for line in conf:
+                    line = line.rstrip()
+                    if line[0] == '#':
+                        continue
+                    fields = re.split(r', *',line)
+                    ep = int(fields[0])
+                    cl = int(fields[1])
+                    c = fields[2]
+                    ca = fields[3]
+                    dev, endpoint, cluster = util.get_in_cluster(app, node, ep, cl)
+                    if not cluster is None:
+                        command_list[repr(app.devices[node].ieee)+ca] = getattr(cluster, c)
             click.echo(f"{repr(app.devices[node].ieee)}")
 
     try:
