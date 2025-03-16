@@ -22,3 +22,4 @@ class InterprocessObjects ():
             self.connection_number = None
             self.doCommand = None
             self.last_update_time = None
+            self.never_sent = None

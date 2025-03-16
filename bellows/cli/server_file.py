@@ -51,6 +51,7 @@ async def entry(commandList, app):
     ipo.doCommand = []
     ipo.lastStatus = {}
     ipo.last_update_time = 0
+    ipo.never_sent = True
 
     def update_status_template():
         '''
@@ -61,6 +62,7 @@ async def entry(commandList, app):
             (device, field, value) = yield
             ipo.lastStatus[device+field] = value
             ipo.last_update_time = time.time()
+            ipo.never_sent = True
 
     update_status = update_status_template()
     next(update_status)  # start the generator
@@ -290,11 +292,12 @@ async def producer_handler(websocket, connection_number):
     lastSentStatus = copy.deepcopy(ipo.lastStatus)
     while True:
         await asyncio.sleep(0.3)
-        if ipo.lastStatus != lastSentStatus and ipo.last_update_time != 0:
+        if (ipo.lastStatus != lastSentStatus or ipo.never_sent) and ipo.last_update_time != 0:
             LOGGER.info(f"gateway sending({connection_number}): {json.dumps(ipo.lastStatus)}")
             try:
                 await websocket.send(json.dumps(ipo.lastStatus))
                 lastSentStatus = copy.deepcopy(ipo.lastStatus)
+                ipo.never_sent = False
             except Exception as e:
                 LOGGER.warning(f"{e} - can not write to websocket, closing client connection"
                                f"({connection_number})")
