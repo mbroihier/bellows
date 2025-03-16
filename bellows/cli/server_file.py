@@ -10,6 +10,8 @@ import signal
 import time
 from websockets.server import serve as wsserve
 
+from . import InterprocessObjects
+
 # pylint: disable-msg=C0103
 # pylint: disable-msg=W1203
 LOGGER = logging.getLogger(__name__)
@@ -32,40 +34,16 @@ def sigint_handler(_, __):
     '''
     On any signal, terminate gateway
     '''
-    ipo = InterprocessObjects()
+    ipo = InterprocessObjects.InterprocessObjects()
     print("\nshutting down server....")
     ipo.continue_loop = False
 
-class InterprocessObjects ():
-    '''
-    Objects used by the gateway process that various process require access to
-    '''
-    def __new__(cls):
-        '''
-        Object allocation
-        '''
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(InterprocessObjects, cls).__new__(cls)
-        return cls.instance
-
-    def __init__(self):
-        '''
-        Contstructor - all attributes are truely defined outside of __init__
-        '''
-        if not hasattr(self, 'commandList'):
-            #  only do this the first time
-            self.commandList = None
-            self.lastStatus = None
-            self.continue_loop = None
-            self.connection_number = None
-            self.doCommand = None
-            self.last_update_time = None
 
 async def entry(commandList, app):
     '''
     Entry of gateway via asnycio environment
     '''
-    ipo = InterprocessObjects()
+    ipo = InterprocessObjects.InterprocessObjects()
     # setup attributes of Interprocess Object
     ipo.commandList = commandList
     ipo.continue_loop = True
@@ -78,7 +56,7 @@ async def entry(commandList, app):
         '''
         Template for creating an update_status generator
         '''
-        ipo = InterprocessObjects()
+        ipo = InterprocessObjects.InterprocessObjects()
         while True:
             (device, field, value) = yield
             ipo.lastStatus[device+field] = value
@@ -262,7 +240,7 @@ async def websocketHandler(websocket):
     '''
     Websocket connection handler - start communication with a client
     '''
-    ipo = InterprocessObjects()
+    ipo = InterprocessObjects.InterprocessObjects()
     LOGGER.debug("websocket server connection is starting")
     consumer_task = asyncio.create_task(consumer_handler(websocket, ipo.connection_number))
     producer_task = asyncio.create_task(producer_handler(websocket, ipo.connection_number))
@@ -277,7 +255,7 @@ async def consumer_handler(websocket, connection_number):
     '''
     Capture incoming bellows ZCL commands and queue them for processing
     '''
-    ipo = InterprocessObjects()
+    ipo = InterprocessObjects.InterprocessObjects()
     LOGGER.info(f"gateway sending ({connection_number}): {json.dumps(ipo.lastStatus)}")
     await websocket.send(json.dumps(ipo.lastStatus))  # this message is sent on connection
     try:
@@ -308,7 +286,7 @@ async def producer_handler(websocket, connection_number):
     '''
     Produce status messages for clients waiting for status changes
     '''
-    ipo = InterprocessObjects()
+    ipo = InterprocessObjects.InterprocessObjects()
     lastSentStatus = copy.deepcopy(ipo.lastStatus)
     while True:
         await asyncio.sleep(0.3)
