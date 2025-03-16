@@ -81,7 +81,7 @@ async def entry(commandList, app):
                 try:
                     v = await commandList[command]([0], allow_cache=False)
                     LOGGER.debug(f"status: {v}")
-                    if v[0][0] is True:
+                    if v[0][0] == 1:
                         state = 'on'
                     else:
                         state = 'off'
@@ -131,9 +131,11 @@ async def entry(commandList, app):
                     try:
                         v = await commandList[ipo.doCommand[0]]([0], allow_cache=False)
                         LOGGER.debug(f"gateway status: {v}")
-                        if v[0][0] is False:
+                        if v[0][0] == 0:
+                            print("say light is off")
                             update_status.send((get_address(ipo.doCommand[0]), "", 'off'))
                         else:
+                            print("say light is on")
                             update_status.send((get_address(ipo.doCommand[0]), "", 'on'))
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
