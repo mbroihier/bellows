@@ -109,14 +109,7 @@ async def entry(commandList, app):
                 if 'status' in ipo.doCommand[0]:
                     await chains.execute(ipo.doCommand[0])
                 elif 'readCT' in ipo.doCommand[0]:
-                    try:
-                        v = await commandList[ipo.doCommand[0]]([7])
-                        LOGGER.debug(f"gateway status: {v[0][7]}")
-                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'CT', v[0][7]))
-                    except Exception as e:
-                        LOGGER.debug(f"gateway Exception: {e}")
-                        ipo.update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
-                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'CT', 0))
+                    await chains.execute(ipo.doCommand[0])
                 elif 'setCT' in ipo.doCommand[0]:
                     try:
                         step_color_temp = 0x4c  # as defined in spec
@@ -152,14 +145,7 @@ async def entry(commandList, app):
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} color temperature not changed")
                 elif 'readLevel' in ipo.doCommand[0]:
-                    try:
-                        v = await commandList[ipo.doCommand[0]]([0])
-                        LOGGER.debug(f"gateway status: {v[0][0]}")
-                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'Level', v[0][0]))
-                    except Exception as e:
-                        LOGGER.debug(f"gateway Exception: {e}")
-                        ipo.update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
-                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'Level', 0))
+                    await chains.execute(ipo.doCommand[0])
                 elif 'setLevel' in ipo.doCommand[0]:
                     try:
                         step_level = 0x02  # as defined in spec
