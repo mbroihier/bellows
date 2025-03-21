@@ -1,3 +1,4 @@
+import time
 class InterprocessObjects ():
     '''
     Objects used by the gateway process that various process require access to
@@ -23,3 +24,14 @@ class InterprocessObjects ():
             self.doCommand = None
             self.last_update_time = None
             self.message_update_counter = None
+            self.update_status = self.update_status_template()
+            next(self.update_status)
+
+    def update_status_template(self):
+        '''
+        Template for creating an update_status generator
+        '''
+        while True:
+            (device, field, value) = yield
+            self.lastStatus[device+field] = value
+            self.last_update_time = time.time()

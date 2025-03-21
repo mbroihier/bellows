@@ -11,7 +11,7 @@ import time
 from websockets.server import serve as wsserve
 
 from . import InterprocessObjects
-
+from . import zcl_chains
 # pylint: disable-msg=C0103
 # pylint: disable-msg=W1203
 LOGGER = logging.getLogger(__name__)
@@ -53,21 +53,9 @@ async def entry(commandList, app):
     ipo.last_update_time = 0
     ipo.message_update_counter = 0
 
-    def update_status_template():
-        '''
-        Template for creating an update_status generator
-        '''
-        ipo = InterprocessObjects.InterprocessObjects()
-        while True:
-            (device, field, value) = yield
-            ipo.lastStatus[device+field] = value
-            ipo.last_update_time = time.time()
-
-    update_status = update_status_template()
-    next(update_status)  # start the generator
     LOGGER.debug(f"command list: {commandList}, continue_loop: {ipo.continue_loop},"
                  " lastStatus: {ipo.lastStatus}")
-    async def init_status(address=None):
+    async def init_status(chains, address=None):
         '''
         Initialize status object
         '''
@@ -77,17 +65,8 @@ async def entry(commandList, app):
                     continue
             addr = get_address(command)
             if 'status' in command:
-                try:
-                    v = await commandList[command]([0], allow_cache=False)
-                    LOGGER.debug(f"status: {v}")
-                    if v[0][0] == 1:
-                        state = 'on'
-                    else:
-                        state = 'off'
-                except Exception as e:
-                    LOGGER.debug(f"Exception: {e}")
-                    state = 'unknown'
-                update_status.send((addr, "", state))
+                LOGGER.debug(f"initializing status for {addr}")
+                await chains.execute(command)
             if 'readCT' in command:
                 try:
                     v = await commandList[command]([3,4,7,16395,16396])
@@ -108,14 +87,15 @@ async def entry(commandList, app):
                     y = 0
                     min_mireds = 0
                     max_mireds = 0
-                update_status.send((addr, 'X', x))
-                update_status.send((addr, 'Y', y))
-                update_status.send((addr, 'Level', light_level))
-                update_status.send((addr, 'minMireds', min_mireds))
-                update_status.send((addr, 'maxMireds', max_mireds))
-                update_status.send((addr, 'CT', color_temperature))
+                ipo.update_status.send((addr, 'X', x))
+                ipo.update_status.send((addr, 'Y', y))
+                ipo.update_status.send((addr, 'Level', light_level))
+                ipo.update_status.send((addr, 'minMireds', min_mireds))
+                ipo.update_status.send((addr, 'maxMireds', max_mireds))
+                ipo.update_status.send((addr, 'CT', color_temperature))
 
-    await init_status()
+    chains = zcl_chains.ZCL_Chains(commandList)
+    await init_status(chains)
     LOGGER.debug("Creating gateway")
     wsserver = await wsserve(websocketHandler, "", 8126)
     async with wsserver:
@@ -127,27 +107,16 @@ async def entry(commandList, app):
             if ipo.doCommand:
                 LOGGER.info(f"gateway doing command: {ipo.doCommand[0]}")
                 if 'status' in ipo.doCommand[0]:
-                    try:
-                        v = await commandList[ipo.doCommand[0]]([0], allow_cache=False)
-                        LOGGER.debug(f"gateway status: {v}")
-                        if v[0][0] == 0:
-                            print("say light is off")
-                            update_status.send((get_address(ipo.doCommand[0]), "", 'off'))
-                        else:
-                            print("say light is on")
-                            update_status.send((get_address(ipo.doCommand[0]), "", 'on'))
-                    except Exception as e:
-                        LOGGER.debug(f"gateway Exception: {e}")
-                        update_status.send((get_address(ipo.doCommand[0]), "", 'unknown'))
+                    await chains.execute(ipo.doCommand[0])
                 elif 'readCT' in ipo.doCommand[0]:
                     try:
                         v = await commandList[ipo.doCommand[0]]([7])
                         LOGGER.debug(f"gateway status: {v[0][7]}")
-                        update_status.send((get_address(ipo.doCommand[0]), 'CT', v[0][7]))
+                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'CT', v[0][7]))
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
-                        update_status.send((get_address(ipo.doCommand[0]), 'CT', 0))
+                        ipo.update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
+                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'CT', 0))
                 elif 'setCT' in ipo.doCommand[0]:
                     try:
                         step_color_temp = 0x4c  # as defined in spec
@@ -174,7 +143,7 @@ async def entry(commandList, app):
                                     direction, step,
                                     1, 0, 0)
                                 LOGGER.warning(f"gateway status: {v}")
-                                update_status.send((address, 'CT', new_temperature_mireds))
+                                ipo.update_status.send((address, 'CT', new_temperature_mireds))
                             else:
                                 LOGGER.warning("temperature out of range, not changed")
                         else:
@@ -186,11 +155,11 @@ async def entry(commandList, app):
                     try:
                         v = await commandList[ipo.doCommand[0]]([0])
                         LOGGER.debug(f"gateway status: {v[0][0]}")
-                        update_status.send((get_address(ipo.doCommand[0]), 'Level', v[0][0]))
+                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'Level', v[0][0]))
                     except Exception as e:
                         LOGGER.debug(f"gateway Exception: {e}")
-                        update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
-                        update_status.send((get_address(ipo.doCommand[0]), 'Level', 0))
+                        ipo.update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
+                        ipo.update_status.send((get_address(ipo.doCommand[0]), 'Level', 0))
                 elif 'setLevel' in ipo.doCommand[0]:
                     try:
                         step_level = 0x02  # as defined in spec
@@ -218,21 +187,12 @@ async def entry(commandList, app):
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} light level not changed")
                         new_level = old_level
-                    update_status.send((get_address(ipo.doCommand[0]), 'Level', new_level))
+                    ipo.update_status.send((get_address(ipo.doCommand[0]), 'Level', new_level))
                 elif ('on' in ipo.doCommand[0] or 'off' in ipo.doCommand[0]):
-                    try:
-                        v = await commandList[ipo.doCommand[0]]()
-                        LOGGER.debug(f"gateway status: {v}")
-                        if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'unknown':
-                            LOGGER.warning("initialing device from an unknown state")
-                            await init_status(get_address(ipo.doCommand[0]))
-                        if v.as_tuple()[0] == 0:
-                            update_status.send((get_address(ipo.doCommand[0]), '', 'off'))
-                        else:
-                            update_status.send((get_address(ipo.doCommand[0]), '', 'on'))
-                    except Exception as e:
-                        LOGGER.debug(f"gateway Exception: {e}")
-                        update_status.send((get_address(ipo.doCommand[0]), '', 'unknown'))
+                    if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'unknown':
+                        await init_status(chains, get_address(ipo.doCommand[0]))
+                    else:
+                        await chains.execute(ipo.doCommand[0])
                 else:
                     LOGGER.warning(f"logic error {ipo.doCommand[0]} is only partially implemented")
                 del ipo.doCommand[0]
