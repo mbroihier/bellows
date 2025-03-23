@@ -39,13 +39,16 @@ def sigint_handler(_, __):
     ipo.continue_loop = False
 
 
-async def entry(commandList, app):
+async def entry(command_info, app):
     '''
     Entry of gateway via asnycio environment
     '''
     ipo = InterprocessObjects.InterprocessObjects()
     # setup attributes of Interprocess Object
-    ipo.commandList = commandList
+    commandList = command_info[0]
+    ipo.commandList = command_info[0]
+    ipo.status_labels = command_info[1]
+    ipo.result_indices = command_info[2]
     ipo.continue_loop = True
     ipo.connection_number = 0
     ipo.doCommand = []
@@ -68,6 +71,8 @@ async def entry(commandList, app):
                 LOGGER.debug(f"initializing status for {addr}")
                 await chains.execute(command)
             if 'readCT' in command:
+                await chains.execute(command)
+                '''
                 try:
                     v = await commandList[command]([3,4,7,16395,16396])
                     LOGGER.debug(f"color temperature: {v}")
@@ -93,6 +98,7 @@ async def entry(commandList, app):
                 ipo.update_status.send((addr, 'minMireds', min_mireds))
                 ipo.update_status.send((addr, 'maxMireds', max_mireds))
                 ipo.update_status.send((addr, 'CT', color_temperature))
+                '''
 
     chains = zcl_chains.ZCL_Chains(commandList)
     await init_status(chains)
