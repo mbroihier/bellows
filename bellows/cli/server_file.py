@@ -118,7 +118,7 @@ async def entry(command_info, app):
                     await chains.execute(ipo.doCommand[0])
                 elif 'setCT' in ipo.doCommand[0]:
                     try:
-                        step_color_temp = 0x4c  # as defined in spec
+                        #step_color_temp = 0x4c  # as defined in spec
                         new_temperature = int(ipo.doCommand[0].split(' ')[-1])
                         address = get_address(ipo.doCommand[0])
                         if new_temperature > 0:
@@ -137,10 +137,7 @@ async def entry(command_info, app):
                                 else:
                                     step = new_temperature_mireds - old_color_temp_mireds
                                     direction = 'Up'
-                                v = await commandList[ipo.doCommand[0].split(' ')[0]](
-                                    step_color_temp,
-                                    direction, step,
-                                    1, 0, 0)
+                                v = await commandList[ipo.doCommand[0].split(' ')[0]](new_temperature_mireds, 1)
                                 LOGGER.warning(f"gateway status: {v}")
                                 ipo.update_status.send((address, 'CT', new_temperature_mireds))
                             else:
@@ -167,8 +164,7 @@ async def entry(command_info, app):
                                 else:
                                     step = new_level - old_level
                                     direction = 'Up'
-                                v = await commandList[ipo.doCommand[0].split(' ')[0]](step_level,
-                                                                              direction, step, 1)
+                                v = await commandList[ipo.doCommand[0].split(' ')[0]](new_level, 1)
                                 LOGGER.warning(f"gateway status: {v}")
                             else:
                                 new_level = old_level

@@ -135,20 +135,21 @@ class Chain():
                 if len(this_link.parameters) == 0:
                     v = await this_link.function()
                 else:
-                    v = await this_link.function(this_link.parameters, allow_cache=False)
-                LOGGER.warning(f"after {this_link.name}, results array is: {self.results}")
-                LOGGER.warning(f"and lastStatus is: {self.ipo.lastStatus}")
-                LOGGER.warning(f"and v is: {v}")
+                    #v = await this_link.function(this_link.parameters, allow_cache=False)
+                    v = await this_link.function(this_link.parameters)
+                LOGGER.debug(f"after {this_link.name}, results array is: {self.results}")
+                LOGGER.debug(f"and lastStatus is: {self.ipo.lastStatus}")
+                LOGGER.debug(f"and v is: {v}")
                 last_link = this_link
                 this_link = this_link.next
             except zigpy.exceptions.ZigbeeException as e:
-                LOGGER.warning(f"exception while processing a chain: {e}")
+                LOGGER.debug(f"exception while processing a chain: {e}")
                 if 'on' in this_link.name or 'off' in this_link.name or 'status' in this_link.name:
                     self.ipo.update_status.send((self.device, "", 'unknown'))
                 elif 'read' in this_link.name:  # set all values to zero - which is typically invalid
                     labels = self.ipo.status_labels[self.name]
                     indices = self.ipo.result_indices[self.name]
-                    LOGGER.warning(f"labels: {labels}")
+                    LOGGER.debug(f"labels: {labels}")
                     for index,_ in enumerate(labels):
                         label = labels[index]
                         if label == '""':
@@ -159,17 +160,17 @@ class Chain():
         if last_link is not None:
             labels = self.ipo.status_labels[self.name]
             indices = self.ipo.result_indices[self.name]
-            LOGGER.warning(f"labels: {labels}")
+            LOGGER.debug(f"labels: {labels}")
             for index,_ in enumerate(labels):
                 label = labels[index]
                 if label == '""':
                     label = ''
                 v_index = indices[index]
                 index_string = "v" + v_index
-                LOGGER.warning(f"index string: {index_string}")
+                LOGGER.debug(f"index string: {index_string}")
                 x = eval(index_string)
-                LOGGER.warning(f"result indices: index_string: {x}")
-                if 'status' in last_link.name:
+                LOGGER.debug(f"result indices: index_string: {x}")
+                if 'on' in last_link.name or 'off' in last_link.name or 'status' in last_link.name:
                     if x == 0:
                         value = 'off'
                     else:
@@ -287,11 +288,12 @@ class ZCL_Chains():
     '''
     ZCL chains
     '''
-    def __init__(self, command_list, debug=False):
+    def __init__(self, command_list):
         '''
         ZCL chains constructor
         '''
-        self.debug = debug
+        self.debug = logging.DEBUG == LOGGER.getEffectiveLevel()
+        print(f"************** DEBUG ******* {self.debug}")
         self.command_list = command_list
         self.ipo = InterprocessObjects.InterprocessObjects()
         self.chain_set = {}
@@ -301,7 +303,6 @@ class ZCL_Chains():
                 chain_name = command
                 link = Link(chain_name, command_list[command], [])
                 chain = Chain(link, chain_name, device, self.ipo)
-                chain.add(Link(device+'status', command_list[device+'status'], [0]))
                 self.chain_set[chain_name] = chain
             if 'status' in command:
                 chain_name = command
@@ -318,7 +319,8 @@ class ZCL_Chains():
                 link = Link(chain_name, command_list[command], [0])
                 chain = Chain(link, chain_name, device, self.ipo)
                 self.chain_set[chain_name] = chain
-        self.print()
+        if self.debug:
+            self.print()
 
     def print(self):
         '''
@@ -345,7 +347,7 @@ class ZCL_Chains():
 async def main():
     logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
                         datefmt=' %Y-%m-%d:%H:%M:%S', level=LOGGER.getEffectiveLevel())
-    chains = ZCL_Chains([1, 2, 3, 4])
+    #chains = ZCL_Chains([1, 2, 3, 4])
     ipo = InterprocessObjects.InterprocessObjects()
     ipo.lastStatus = {}
     ipo.lastStatus["b0:c7:de:ff:fe:52:ca:58"] = 'on'
