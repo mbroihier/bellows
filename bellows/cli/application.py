@@ -391,6 +391,7 @@ async def gateway(ctx, database):
     app = ctx.obj["app"]
     click.echo("Available nodes to talk to that have on/off switches")
     command_list = {}  # build a command list for all nodes that can be turned on and off
+    command_tuples = {}
     status_labels = {}
     result_indices = {}
     pattern = re.compile(r'(\(.*?\))')
@@ -410,13 +411,16 @@ async def gateway(ctx, database):
                     if not cluster is None:
                         command_list[repr(app.devices[node].ieee)+ca] = getattr(cluster, c)
                         parameters = re.findall(pattern, line)
-                        if len(parameters) == 2:
-                            labels = parameters[0].replace('(', '').replace(')', '')
+                        if len(parameters) == 3:
+                            command_tuple = parameters[0]
+                            command_tuples[repr(app.devices[node].ieee)+ca] = command_tuple
+                            labels = parameters[1].replace('(', '').replace(')', '')
                             status_labels[repr(app.devices[node].ieee)+ca] = re.split(r', *', labels)
-                            indices = parameters[1].replace('(', '').replace(')', '')
+                            indices = parameters[2].replace('(', '').replace(')', '')
                             result_indices[repr(app.devices[node].ieee)+ca] = re.split(r', *',indices)
             click.echo(f"{repr(app.devices[node].ieee)}")
-    command_info = (command_list, status_labels, result_indices)
+    print(f"command tuples: {command_tuples}")
+    command_info = (command_list, command_tuples, status_labels, result_indices)
     try:
         await sf.entry(command_info, app)
     except ValueError as e:

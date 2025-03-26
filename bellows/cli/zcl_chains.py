@@ -132,11 +132,12 @@ class Chain():
             LOGGER.debug(type(this_link.function))
             last_link = None
             try:
-                if len(this_link.parameters) == 0:
+                p = eval(this_link.parameters),
+                if p[0] is None:
                     v = await this_link.function()
                 else:
-                    #v = await this_link.function(this_link.parameters, allow_cache=False)
-                    v = await this_link.function(this_link.parameters)
+                    print(f"this_link.parameters: {this_link.parameters}, p: {p}, type(p): {type(p)}")
+                    v = await this_link.function(*p)
                 LOGGER.debug(f"after {this_link.name}, results array is: {self.results}")
                 LOGGER.debug(f"and lastStatus is: {self.ipo.lastStatus}")
                 LOGGER.debug(f"and v is: {v}")
@@ -297,28 +298,36 @@ class ZCL_Chains():
         self.command_list = command_list
         self.ipo = InterprocessObjects.InterprocessObjects()
         self.chain_set = {}
+        print(self.ipo.commandList)
+        print(self.ipo.command_tuples)
         for command in command_list:
             device = get_address(command)
+            chain_name = command
+            link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
+            chain = Chain(link, chain_name, device, self.ipo)
+            self.chain_set[chain_name] = chain
+            '''
             if 'on' in command or 'off' in command:
                 chain_name = command
-                link = Link(chain_name, command_list[command], [])
+                link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
                 chain = Chain(link, chain_name, device, self.ipo)
                 self.chain_set[chain_name] = chain
             if 'status' in command:
                 chain_name = command
-                chain = Chain(Link(command, command_list[command], [0]), chain_name, device,
+                chain = Chain(Link(command, command_list[command], self.ipo.command_tuples[command]), chain_name, device,
                               self.ipo)
                 self.chain_set[chain_name] = chain
             if 'readCT' in command:
                 chain_name = command
-                link = Link(chain_name, command_list[command], [3, 4, 7, 16395, 16396])
+                link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
                 chain = Chain(link, chain_name, device, self.ipo)
                 self.chain_set[chain_name] = chain
             if 'readLevel' in command:
                 chain_name = command
-                link = Link(chain_name, command_list[command], [0])
+                link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
                 chain = Chain(link, chain_name, device, self.ipo)
                 self.chain_set[chain_name] = chain
+            '''
         if self.debug:
             self.print()
 

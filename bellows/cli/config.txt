@@ -1,8 +1,8 @@
-#endpoint cluster command                     command-alias  status label                      result indices
-1,        6,      on,                         on,            ("")                              ([0])
-1,        6,      off,                        off,           ("")                              ([0])
-1,        6,      read_attributes,            status,        ("")                              ([0][0])
-1,        8,      read_attributes,            readLevel,     (Level)                           ([0][0])
-1,        8,      move_to_level,              setLevel,      (Level)                           ([0])
-1,        768,    read_attributes,            readCT,        (X, Y, CT, minMireds, maxMireds)  ([0][3],[0][4],[0][7],[0][16395],[0][16396])
-1,        768,    move_to_color_temp,         setCT,         (CT)                              ([0][7])
+#endpoint cluster command                     command-alias  command tuple              status label                      result indices
+1,        6,      on,                         on,            (None),                    ("")                              ([0])
+1,        6,      off,                        off,           (None),                    ("")                              ([0])
+1,        6,      read_attributes,            status,        ([0]),                     ("")                              ([0][0])
+1,        8,      read_attributes,            readLevel,     ([0]),                     (Level)                           ([0][0])
+1,        8,      move_to_level,              setLevel,      (),                        (Level)                           ([0])
+1,        768,    read_attributes,            readCT,        ([3, 4, 7, 16395, 16396]), (X, Y, CT, minMireds, maxMireds)  ([0][3],[0][4],[0][7],[0][16395],[0][16396])
+1,        768,    move_to_color_temp,         setCT,         (),                        (CT)                              ([0][7])

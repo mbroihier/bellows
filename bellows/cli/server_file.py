@@ -47,8 +47,9 @@ async def entry(command_info, app):
     # setup attributes of Interprocess Object
     commandList = command_info[0]
     ipo.commandList = command_info[0]
-    ipo.status_labels = command_info[1]
-    ipo.result_indices = command_info[2]
+    ipo.command_tuples = command_info[1]
+    ipo.status_labels = command_info[2]
+    ipo.result_indices = command_info[3]
     ipo.continue_loop = True
     ipo.connection_number = 0
     ipo.doCommand = []
