@@ -132,10 +132,14 @@ class Chain():
             LOGGER.debug(type(this_link.function))
             last_link = None
             try:
+                print(f"processing {this_link.name}")
+                print(f"this_link.parameters: {this_link.parameters}, type: {type(this_link.parameters)}")
                 p = eval(this_link.parameters),
                 if p[0] is None:
                     v = await this_link.function()
                 else:
+                    if type(p[0]) is tuple:
+                        p = p[0]
                     print(f"this_link.parameters: {this_link.parameters}, p: {p}, type(p): {type(p)}")
                     v = await this_link.function(*p)
                 LOGGER.debug(f"after {this_link.name}, results array is: {self.results}")
@@ -158,7 +162,7 @@ class Chain():
                         self.ipo.update_status.send((self.device, label, 0))
                 last_link = None
                 break
-        if last_link is not None:
+        if last_link is not None and last_link.name != 'store':
             labels = self.ipo.status_labels[self.name]
             indices = self.ipo.result_indices[self.name]
             LOGGER.debug(f"labels: {labels}")
@@ -167,7 +171,10 @@ class Chain():
                 if label == '""':
                     label = ''
                 v_index = indices[index]
-                index_string = "v" + v_index
+                if self.results is None:
+                    index_string = "v" + v_index
+                else:
+                    index_string = "self.results"+v_index
                 LOGGER.debug(f"index string: {index_string}")
                 x = eval(index_string)
                 LOGGER.debug(f"result indices: index_string: {x}")
@@ -356,23 +363,26 @@ class ZCL_Chains():
 async def main():
     logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
                         datefmt=' %Y-%m-%d:%H:%M:%S', level=LOGGER.getEffectiveLevel())
-    #chains = ZCL_Chains([1, 2, 3, 4])
     ipo = InterprocessObjects.InterprocessObjects()
     ipo.lastStatus = {}
+    ipo.status_labels = {}
+    ipo.result_indices = {}
     ipo.lastStatus["b0:c7:de:ff:fe:52:ca:58"] = 'on'
     ipo.lastStatus["b0:c7:de:ff:fe:52:ca:58minMireds"] = 153
     ipo.lastStatus["b0:c7:de:ff:fe:52:ca:58maxMireds"] = 555
     ipo.lastStatus["b0:c7:de:ff:fe:52:ca:58CT"] = 285
+    ipo.status_labels["color temperature"] = ['colorT']
+    ipo.result_indices["color temperature"] = ['[0]']
     print(f"after initialization, lastStatus is: {ipo.lastStatus}")
-    chain_one = Chain(Link('store', Chain.store, [0, 'working']), 'color temperature',
+    chain_one = {}
+    chain_one = Chain(Link('store', Chain.store, "(self, [0, 'working'])"), 'color temperature',
                       'b0:c7:de:ff:fe:52:ca:58', ipo)
-    chain_one.add(Link('setp', Chain.setp, [1000000]))
-    chain_one.add(Link('dividep', Chain.dividep, ["working"]))
-    chain_one.add(Link('store', Chain.store, [0, 'newCT']))
+    chain_one.add(Link('setp', Chain.setp, "(self, [1000000])"))
+    chain_one.add(Link('dividep', Chain.dividep, "(self, ['working'])"))
+    chain_one.add(Link('store', Chain.store, "(self, [0, 'CT'])"))
     chain_one.print_chain()
     try:
         await chain_one.execute([5000])
-        #asyncio.run(chain_one.execute([5000]))
     except Chain.ParameterMismatch as e:
         print(f"Exception received: {e}")
     print(f"after execution of the chain, lastStatus is: {ipo.lastStatus}")
