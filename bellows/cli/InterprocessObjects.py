@@ -1,3 +1,6 @@
+'''
+InterprocessObjects - objects accessed by separate processes running within the gateway
+'''
 import time
 class InterprocessObjects ():
     '''
@@ -18,12 +21,14 @@ class InterprocessObjects ():
         if not hasattr(self, 'commandList'):
             #  only do this the first time
             self.commandList = None
-            self.lastStatus = None
+            self.lastStatus = {}
             self.continue_loop = None
             self.connection_number = None
             self.doCommand = None
             self.last_update_time = None
             self.message_update_counter = None
+            self.command_tuples = None
+            self.network_devices = None
             self.update_status = self.update_status_template()
             next(self.update_status)
 

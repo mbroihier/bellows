@@ -3,22 +3,14 @@
 ZCL Chains - create chains of zcl commands
 '''
 import asyncio
-import calendar
-import copy
 import logging
-
-import json
 import math
-import time
 import re
-import sys
-import websockets
 
 import click
 import click_log
 
 from bellows.cli import InterprocessObjects
-from bellows.cli import opts
 from bellows.cli import util
 
 import zigpy.exceptions
@@ -134,21 +126,23 @@ class Chain():
             last_link = None
             try:
                 LOGGER.debug(f"processing {this_link.name}")
-                LOGGER.debug(f"this_link.parameters: {this_link.parameters}, type: {type(this_link.parameters)}")
+                LOGGER.debug(f"this_link.parameters: {this_link.parameters},"
+                             " type: {type(this_link.parameters)}")
                 p = eval(this_link.parameters),
                 if p[0] is None:
                     v = await this_link.function()
                 else:
-                    if type(p[0]) is tuple:
+                    if isinstance(p[0], tuple):
                         p = p[0]
-                        newP = []
+                        new_p = []
                         for index,_ in enumerate(p):
-                            if type(p[index]) is str:
-                                newP.append(int(self.ipo.lastStatus[self.device+p[index]]))
+                            if isinstance(p[index], str):
+                                new_p.append(int(self.ipo.lastStatus[self.device+p[index]]))
                             else:
-                                newP.append(p[index])
-                        p = tuple(newP)
-                    LOGGER.debug(f"this_link.parameters: {this_link.parameters}, p: {p}, type(p): {type(p)}")
+                                new_p.append(p[index])
+                        p = tuple(new_p)
+                    LOGGER.debug(f"this_link.parameters: {this_link.parameters}, p: {p},"
+                                 " type(p): {type(p)}")
                     v = await this_link.function(*p)
                 LOGGER.debug(f"after {this_link.name}, results array is: {self.results}")
                 LOGGER.debug(f"and lastStatus is: {self.ipo.lastStatus}")
@@ -159,7 +153,7 @@ class Chain():
                 LOGGER.debug(f"exception while processing a chain: {e}")
                 if 'on' in this_link.name or 'off' in this_link.name or 'status' in this_link.name:
                     self.ipo.update_status.send((self.device, "", 'unknown'))
-                elif 'read' in this_link.name:  # set all values to zero - which is typically invalid
+                elif 'read' in this_link.name:  # set all values to zero - typically invalid
                     full_name = self.name
                     if self.device not in full_name:
                         full_name = self.device+self.name
@@ -356,24 +350,27 @@ class ZCL_Chains():
                         if len(parameters) == 3:
                             link = Link(link_name, func, parameters[0])
                         else:
-                            LOGGER.warning("something is wrong in the configuration file - line is {line}")
+                            LOGGER.warning("something is wrong in the configuration file:({line})")
                     else:
                         parameters = re.findall(pattern, line)
                         if len(parameters) == 3:
                             if device+link_name in self.chain_set:
-                                link = Link(link_name, command_list[device+link_name], parameters[0])
+                                link = Link(link_name, command_list[device+link_name],
+                                            parameters[0])
                                 if '(None)' not in parameters[1]:
                                     self.ipo.status_labels[device+link_name] = (
-                                        re.split(r', *', parameters[1].replace('(','').replace(')','')))
+                                        re.split(r', *', parameters[1].replace(
+                                            '(','').replace(')','')))
                                 if '(None)' not in parameters[2]:
                                     self.ipo.result_indices[device+link_name] = (
-                                        re.split(r', *', parameters[2].replace('(','').replace(')','')))
+                                        re.split(r', *', parameters[2].replace(
+                                            '(','').replace(')','')))
                             else:
                                 LOGGER.warning(f"{chain_name} is not supported by device {device}")
                                 chain = None
                                 continue # this command is not supported with this device
                         else:
-                            LOGGER.warning("something is wrong in the configuration file - line is {line}")
+                            LOGGER.warning("something is wrong in the configuration file:({line}}")
                     if chain is None:
                         chain = Chain(link, chain_name, device, self.ipo)
                     else:
@@ -390,13 +387,13 @@ class ZCL_Chains():
         Print the entire ZCL chain set
         '''
         print("Chain set contains:")
-        for item in self.chain_set:
-            print(f"This chain, {item}, has links:")
-            this_link = self.chain_set[item].head
+        for key, value in self.chain_set.items():
+            print(f"This chain, {key}, has links:")
+            this_link = value.head
             while this_link is not None:
                 print(this_link.name)
                 this_link = this_link.next
-            print
+            print()
 
     async def execute(self, command, parameters=None):
         '''
@@ -417,6 +414,9 @@ class ZCL_Chains():
 @click_log.simple_verbosity_option(logging.getLogger(), default='INFO')
 @util.background
 async def main():
+    '''
+    main/test only program
+    '''
     logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)4d] %(message)s',
                         datefmt=' %Y-%m-%d:%H:%M:%S', level=LOGGER.getEffectiveLevel())
     ipo = InterprocessObjects.InterprocessObjects()
