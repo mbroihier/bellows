@@ -8,6 +8,7 @@ import copy
 import logging
 
 import json
+import math
 import time
 import re
 import sys
@@ -132,28 +133,38 @@ class Chain():
             LOGGER.debug(type(this_link.function))
             last_link = None
             try:
-                print(f"processing {this_link.name}")
-                print(f"this_link.parameters: {this_link.parameters}, type: {type(this_link.parameters)}")
+                LOGGER.debug(f"processing {this_link.name}")
+                LOGGER.debug(f"this_link.parameters: {this_link.parameters}, type: {type(this_link.parameters)}")
                 p = eval(this_link.parameters),
                 if p[0] is None:
                     v = await this_link.function()
                 else:
                     if type(p[0]) is tuple:
                         p = p[0]
-                    print(f"this_link.parameters: {this_link.parameters}, p: {p}, type(p): {type(p)}")
+                        newP = []
+                        for index,_ in enumerate(p):
+                            if type(p[index]) is str:
+                                newP.append(int(self.ipo.lastStatus[self.device+p[index]]))
+                            else:
+                                newP.append(p[index])
+                        p = tuple(newP)
+                    LOGGER.debug(f"this_link.parameters: {this_link.parameters}, p: {p}, type(p): {type(p)}")
                     v = await this_link.function(*p)
                 LOGGER.debug(f"after {this_link.name}, results array is: {self.results}")
                 LOGGER.debug(f"and lastStatus is: {self.ipo.lastStatus}")
                 LOGGER.debug(f"and v is: {v}")
                 last_link = this_link
                 this_link = this_link.next
-            except zigpy.exceptions.ZigbeeException as e:
+            except (zigpy.exceptions.ZigbeeException, ZeroDivisionError) as e:
                 LOGGER.debug(f"exception while processing a chain: {e}")
                 if 'on' in this_link.name or 'off' in this_link.name or 'status' in this_link.name:
                     self.ipo.update_status.send((self.device, "", 'unknown'))
                 elif 'read' in this_link.name:  # set all values to zero - which is typically invalid
-                    labels = self.ipo.status_labels[self.name]
-                    indices = self.ipo.result_indices[self.name]
+                    full_name = self.name
+                    if self.device not in full_name:
+                        full_name = self.device+self.name
+                    labels = self.ipo.status_labels[full_name]
+                    indices = self.ipo.result_indices[full_name]
                     LOGGER.debug(f"labels: {labels}")
                     for index,_ in enumerate(labels):
                         label = labels[index]
@@ -163,8 +174,11 @@ class Chain():
                 last_link = None
                 break
         if last_link is not None and last_link.name != 'store':
-            labels = self.ipo.status_labels[self.name]
-            indices = self.ipo.result_indices[self.name]
+            full_name = self.name
+            if self.device not in full_name:
+                full_name = self.device+self.name
+            labels = self.ipo.status_labels[full_name]
+            indices = self.ipo.result_indices[full_name]
             LOGGER.debug(f"labels: {labels}")
             for index,_ in enumerate(labels):
                 label = labels[index]
@@ -174,6 +188,7 @@ class Chain():
                 if self.results is None:
                     index_string = "v" + v_index
                 else:
+                    LOGGER.debug(f"results: {self.results}")
                     index_string = "self.results"+v_index
                 LOGGER.debug(f"index string: {index_string}")
                 x = eval(index_string)
@@ -203,6 +218,7 @@ class Chain():
                     self.results[index] += self.ipo.lastStatus[self.device+list_of_constants[index]]
                 else:
                     self.results[index] += list_of_constants[index]
+                self.results[index] = math.floor(self.results[index] + 0.5)
         else:
             raise Chain.ParameterMismatch("addp attempting to use inconsistent parameter lists")
 
@@ -216,6 +232,7 @@ class Chain():
                     self.results[index] -= self.ipo.lastStatus[self.device+list_of_constants[index]]
                 else:
                     self.results[index] -= list_of_constants[index]
+                self.results[index] = math.floor(self.results[index] + 0.5)
         else:
             raise Chain.ParameterMismatch("subtractp attempting to use inconsistent parameter"
                                           " lists")
@@ -230,6 +247,7 @@ class Chain():
                     self.results[index] *= self.ipo.lastStatus[self.device+list_of_constants[index]]
                 else:
                     self.results[index] *= list_of_constants[index]
+                self.results[index] = math.floor(self.results[index] + 0.5)
         else:
             raise Chain.ParameterMismatch("multiplyp attempting to use inconsistent parameter"
                                           " lists")
@@ -244,6 +262,7 @@ class Chain():
                     self.results[index] /= self.ipo.lastStatus[self.device+list_of_constants[index]]
                 else:
                     self.results[index] /= list_of_constants[index]
+                self.results[index] = math.floor(self.results[index] + 0.5)
         else:
             raise Chain.ParameterMismatch("dividep attempting to use inconsistent parameter lists")
 
@@ -305,36 +324,64 @@ class ZCL_Chains():
         self.command_list = command_list
         self.ipo = InterprocessObjects.InterprocessObjects()
         self.chain_set = {}
-        print(self.ipo.commandList)
-        print(self.ipo.command_tuples)
+        LOGGER.debug(self.ipo.commandList)
+        LOGGER.debug(self.ipo.command_tuples)
         for command in command_list:
             device = get_address(command)
             chain_name = command
             link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
             chain = Chain(link, chain_name, device, self.ipo)
             self.chain_set[chain_name] = chain
-            '''
-            if 'on' in command or 'off' in command:
-                chain_name = command
-                link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
-                chain = Chain(link, chain_name, device, self.ipo)
-                self.chain_set[chain_name] = chain
-            if 'status' in command:
-                chain_name = command
-                chain = Chain(Link(command, command_list[command], self.ipo.command_tuples[command]), chain_name, device,
-                              self.ipo)
-                self.chain_set[chain_name] = chain
-            if 'readCT' in command:
-                chain_name = command
-                link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
-                chain = Chain(link, chain_name, device, self.ipo)
-                self.chain_set[chain_name] = chain
-            if 'readLevel' in command:
-                chain_name = command
-                link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
-                chain = Chain(link, chain_name, device, self.ipo)
-                self.chain_set[chain_name] = chain
-            '''
+        self.derived_chain_set = {}
+        pattern = re.compile(r'(\(.*?\))')
+        for device in self.ipo.network_devices:
+            with open("derived_chains.txt", "r", encoding="utf-8") as dc:
+                LOGGER.debug(f"building derived chains for {device}")
+                chain_name = ""
+                chain = None
+                for line in dc:
+                    line = line.strip()
+                    if line[0] == '#':
+                        continue
+                    fields = re.split(r', *',line)
+                    if chain_name != fields[0]:   # a new chain, store old one
+                        if chain_name != "":
+                            self.derived_chain_set[device+chain_name] = chain
+                        chain_name = fields[0]
+                        chain = None
+                    link_name = fields[1]
+                    if hasattr(Chain, link_name):
+                        func = eval("Chain."+link_name)
+                        parameters = re.findall(pattern, line)
+                        if len(parameters) == 3:
+                            link = Link(link_name, func, parameters[0])
+                        else:
+                            LOGGER.warning("something is wrong in the configuration file - line is {line}")
+                    else:
+                        parameters = re.findall(pattern, line)
+                        if len(parameters) == 3:
+                            if device+link_name in self.chain_set:
+                                link = Link(link_name, command_list[device+link_name], parameters[0])
+                                if '(None)' not in parameters[1]:
+                                    self.ipo.status_labels[device+link_name] = (
+                                        re.split(r', *', parameters[1].replace('(','').replace(')','')))
+                                if '(None)' not in parameters[2]:
+                                    self.ipo.result_indices[device+link_name] = (
+                                        re.split(r', *', parameters[2].replace('(','').replace(')','')))
+                            else:
+                                LOGGER.warning(f"{chain_name} is not supported by device {device}")
+                                chain = None
+                                continue # this command is not supported with this device
+                        else:
+                            LOGGER.warning("something is wrong in the configuration file - line is {line}")
+                    if chain is None:
+                        chain = Chain(link, chain_name, device, self.ipo)
+                    else:
+                        chain.add(link)
+                if chain is not None:
+                    self.derived_chain_set[device+chain_name] = chain
+
+        LOGGER.debug(f"derived chains: {self.derived_chain_set}")
         if self.debug:
             self.print()
 
@@ -351,11 +398,20 @@ class ZCL_Chains():
                 this_link = this_link.next
             print
 
-    async def execute(self, command):
+    async def execute(self, command, parameters=None):
         '''
         Execute a ZCL chain
         '''
-        await self.chain_set[command].execute()
+        if command in self.derived_chain_set:
+            if parameters is None:
+                await self.derived_chain_set[command].execute()
+            else:
+                await self.derived_chain_set[command].execute([parameters])
+        else:
+            if parameters is None:
+                await self.chain_set[command].execute()
+            else:
+                await self.chain_set[command].execute([parameters])
 
 @click.command()
 @click_log.simple_verbosity_option(logging.getLogger(), default='INFO')

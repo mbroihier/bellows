@@ -50,6 +50,7 @@ async def entry(command_info, app):
     ipo.command_tuples = command_info[1]
     ipo.status_labels = command_info[2]
     ipo.result_indices = command_info[3]
+    ipo.network_devices = command_info[4]
     ipo.continue_loop = True
     ipo.connection_number = 0
     ipo.doCommand = []
@@ -118,6 +119,10 @@ async def entry(command_info, app):
                 elif 'readCT' in ipo.doCommand[0]:
                     await chains.execute(ipo.doCommand[0])
                 elif 'setCT' in ipo.doCommand[0]:
+                    command = ipo.doCommand[0].split(' ')[0]
+                    params = eval(ipo.doCommand[0].split(' ')[1])
+                    await chains.execute(command, params)
+                    '''
                     try:
                         #step_color_temp = 0x4c  # as defined in spec
                         new_temperature = int(ipo.doCommand[0].split(' ')[-1])
@@ -148,6 +153,7 @@ async def entry(command_info, app):
 
                     except Exception as e:
                         LOGGER.warning(f"gateway Exception: {e} color temperature not changed")
+                    '''
                 elif 'readLevel' in ipo.doCommand[0]:
                     await chains.execute(ipo.doCommand[0])
                 elif 'setLevel' in ipo.doCommand[0]:

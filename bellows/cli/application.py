@@ -395,6 +395,7 @@ async def gateway(ctx, database):
     status_labels = {}
     result_indices = {}
     pattern = re.compile(r'(\(.*?\))')
+    network_devices = []
     for node in app.devices:
         if app.devices[node].nwk != 0:
             with open('config.txt', 'r', encoding='utf-8') as conf:
@@ -419,8 +420,9 @@ async def gateway(ctx, database):
                             indices = parameters[2].replace('(', '').replace(')', '')
                             result_indices[repr(app.devices[node].ieee)+ca] = re.split(r', *',indices)
             click.echo(f"{repr(app.devices[node].ieee)}")
+            network_devices.append(repr(app.devices[node].ieee))
     print(f"command tuples: {command_tuples}")
-    command_info = (command_list, command_tuples, status_labels, result_indices)
+    command_info = (command_list, command_tuples, status_labels, result_indices, network_devices)
     try:
         await sf.entry(command_info, app)
     except ValueError as e:
