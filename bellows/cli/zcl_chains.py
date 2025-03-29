@@ -326,7 +326,7 @@ class ZCL_Chains():
             link = Link(chain_name, command_list[command], self.ipo.command_tuples[command])
             chain = Chain(link, chain_name, device, self.ipo)
             self.chain_set[chain_name] = chain
-        self.derived_chain_set = {}
+        derived_chain_set = {}
         pattern = re.compile(r'(\(.*?\))')
         for device in self.ipo.network_devices:
             with open("derived_chains.txt", "r", encoding="utf-8") as dc:
@@ -340,7 +340,7 @@ class ZCL_Chains():
                     fields = re.split(r', *',line)
                     if chain_name != fields[0]:   # a new chain, store old one
                         if chain_name != "":
-                            self.derived_chain_set[device+chain_name] = chain
+                            derived_chain_set[device+chain_name] = chain
                         chain_name = fields[0]
                         chain = None
                     link_name = fields[1]
@@ -376,9 +376,9 @@ class ZCL_Chains():
                     else:
                         chain.add(link)
                 if chain is not None:
-                    self.derived_chain_set[device+chain_name] = chain
-
-        LOGGER.debug(f"derived chains: {self.derived_chain_set}")
+                    derived_chain_set[device+chain_name] = chain
+        for key, value in derived_chain_set.items():
+            self.chain_set[key] = value
         if self.debug:
             self.print()
 
@@ -399,16 +399,10 @@ class ZCL_Chains():
         '''
         Execute a ZCL chain
         '''
-        if command in self.derived_chain_set:
-            if parameters is None:
-                await self.derived_chain_set[command].execute()
-            else:
-                await self.derived_chain_set[command].execute([parameters])
+        if parameters is None:
+            await self.chain_set[command].execute()
         else:
-            if parameters is None:
-                await self.chain_set[command].execute()
-            else:
-                await self.chain_set[command].execute([parameters])
+            await self.chain_set[command].execute([parameters])
 
 @click.command()
 @click_log.simple_verbosity_option(logging.getLogger(), default='INFO')

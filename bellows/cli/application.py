@@ -398,7 +398,7 @@ async def gateway(ctx, database):
     network_devices = []
     for node in app.devices:
         if app.devices[node].nwk != 0:
-            with open('config.txt', 'r', encoding='utf-8') as conf:
+            with open('link_config.txt', 'r', encoding='utf-8') as conf:
                 for line in conf:
                     line = line.rstrip()
                     if line[0] == '#':
