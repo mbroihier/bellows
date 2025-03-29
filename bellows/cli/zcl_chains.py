@@ -367,7 +367,7 @@ class ZCL_Chains():
                                             '(','').replace(')','')))
                             else:
                                 LOGGER.warning(f"{chain_name} with link {link_name} is not"
-                                               " supported by device {device}")
+                                               f" supported by device {device}")
                                 if self.debug:
                                     self.print()
                                 chain = None
