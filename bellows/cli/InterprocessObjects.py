@@ -27,7 +27,7 @@ class InterprocessObjects ():
             self.doCommand = None
             self.last_update_time = None
             self.message_update_counter = None
-            self.command_tuples = None
+            self.command_tuples = {}
             self.network_devices = None
             self.update_status = self.update_status_template()
             next(self.update_status)

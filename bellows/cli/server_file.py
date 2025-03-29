@@ -87,27 +87,23 @@ async def entry(command_info, app):
             await asyncio.sleep(0.1)
             if ipo.doCommand:
                 LOGGER.info(f"gateway doing command: {ipo.doCommand[0]}")
-                if 'status' in ipo.doCommand[0]:
-                    await chains.execute(ipo.doCommand[0])
-                elif 'readCT' in ipo.doCommand[0]:
-                    await chains.execute(ipo.doCommand[0])
-                elif 'setCT' in ipo.doCommand[0]:
-                    command = ipo.doCommand[0].split(' ')[0]
-                    params = eval(ipo.doCommand[0].split(' ')[1])
-                    await chains.execute(command, params)
-                elif 'readLevel' in ipo.doCommand[0]:
-                    await chains.execute(ipo.doCommand[0])
-                elif 'setLevel' in ipo.doCommand[0]:
-                    command = ipo.doCommand[0].split(' ')[0]
-                    params = eval(ipo.doCommand[0].split(' ')[1])
-                    await chains.execute(command, params)
-                elif ('on' in ipo.doCommand[0] or 'off' in ipo.doCommand[0]):
-                    if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'unknown':
-                        await init_status(chains, get_address(ipo.doCommand[0]))
-                    else:
-                        await chains.execute(ipo.doCommand[0])
+                fields = ipo.doCommand[0].split(' ')
+                if len(fields) == 1:
+                    command = fields[0]
+                    if ipo.lastStatus[get_address(command)] == 'unknown':
+                        await init_status(chains, get_address(command))
+                    await chains.execute(command)
+                elif len(fields) == 2:
+                    command = fields[0]
+                    try:
+                        params = int(fields[1])
+                        if ipo.lastStatus[get_address(command)] == 'unknown':
+                            await init_status(chains, get_address(command))
+                        await chains.execute(command, params)
+                    except ValueError as e:
+                        LOGGER.warning(f"invalid parameter produced exception: {e}")
                 else:
-                    LOGGER.warning(f"logic error {ipo.doCommand[0]} is only partially implemented")
+                    LOGGER.warning(f"{ipo.doCommand[0]} is not supported")
                 del ipo.doCommand[0]
         LOGGER.info(f"gateway terminating - continue_loop: {ipo.continue_loop},"
                     " controller status: {app._ezsp.is_ezsp_running}")
