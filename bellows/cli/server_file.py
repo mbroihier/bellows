@@ -98,32 +98,9 @@ async def entry(command_info, app):
                 elif 'readLevel' in ipo.doCommand[0]:
                     await chains.execute(ipo.doCommand[0])
                 elif 'setLevel' in ipo.doCommand[0]:
-                    try:
-                        step_level = 0x02  # as defined in spec
-                        new_level = int(ipo.doCommand[0].split(' ')[-1])
-                        old_level = ipo.lastStatus[get_address(ipo.doCommand[0])+'Level']
-                        LOGGER.warning(f"new light level: {new_level}")
-                        LOGGER.warning(f"old light level: {old_level}")
-                        if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'on':
-                            if 0 < new_level < 255:
-                                if old_level > new_level:
-                                    step = old_level - new_level
-                                    direction = 'Down'
-                                else:
-                                    step = new_level - old_level
-                                    direction = 'Up'
-                                v = await commandList[ipo.doCommand[0].split(' ')[0]](new_level, 1)
-                                LOGGER.warning(f"gateway status: {v}")
-                            else:
-                                new_level = old_level
-                                LOGGER.warning("light level out of range, not changed")
-                        else:
-                            new_level = old_level
-                            LOGGER.warning("can't change light level when bulb is off")
-                    except Exception as e:
-                        LOGGER.warning(f"gateway Exception: {e} light level not changed")
-                        new_level = old_level
-                    ipo.update_status.send((get_address(ipo.doCommand[0]), 'Level', new_level))
+                    command = ipo.doCommand[0].split(' ')[0]
+                    params = eval(ipo.doCommand[0].split(' ')[1])
+                    await chains.execute(command, params)
                 elif ('on' in ipo.doCommand[0] or 'off' in ipo.doCommand[0]):
                     if ipo.lastStatus[get_address(ipo.doCommand[0])] == 'unknown':
                         await init_status(chains, get_address(ipo.doCommand[0]))

@@ -1,0 +1,8 @@
+#chain name       command-alias  command tuple               status label                      result indices
+setCT,            store,         (self, [0, 'working'])      (None)                            (None)
+setCT,            setp,          (self, [1000000])           (None)                            (None)
+setCT,            dividep,       (self, ['working'])         (None)                            (None)
+setCT,            store,         (self, [0, 'working'])      (None)                            (None)
+setCT,            setCT,         ('working', 1)              (CT)                              ([0])
+setLevel,         store,         (self, [0, 'working'])      (None)                            (None)
+setLevel,         setLevel,      ('working', 1)              (Level)                           ([0])

@@ -366,7 +366,9 @@ class ZCL_Chains():
                                         re.split(r', *', parameters[2].replace(
                                             '(','').replace(')','')))
                             else:
-                                LOGGER.warning(f"{chain_name} is not supported by device {device}")
+                                LOGGER.warning(f"{chain_name} with link {link_name} is not supported"
+                                               " by device {device}")
+                                self.print()
                                 chain = None
                                 continue # this command is not supported with this device
                         else:
