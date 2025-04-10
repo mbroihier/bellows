@@ -1,0 +1,137 @@
+#!/usr/bin/python3
+'''
+watchdog - monitor bellows + processes and restart if not responding
+'''
+import re
+import subprocess
+import sys
+import time
+# regular expression patterns to look for
+GATEWAY_PATTERN = re.compile(r'bellows gateway')
+HTTPSERVER_PATTERN = re.compile(r'python ./httpserver.py')
+TIMEDEVENTGENERATOR_PATTERN = re.compile(r'python ./timedEventGenerator.py')
+# constants
+RETRY_LIMIT = 3
+FAIL_THRESHOLD = 3
+
+def start_restart_gateway():
+    '''
+    start_restart_gateway - starts/restarts a child process that is the bellows + gateway
+    '''
+    print("starting/restarting bellows + gateway")
+    return subprocess.Popen(['../../../bin/bellows', 'gateway'],
+                            close_fds=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+def start_restart_httpserver():
+    '''
+    start_restart_httpserver - starts/restarts a child process that is the httpserver
+    '''
+    print("starting/restarting httpserver")
+    return subprocess.Popen(['./httpserver.py'],
+                            close_fds=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+def start_restart_timedEventGenerator():
+    '''
+    start_restart_timedEventGenerator - starts/restarts a child process that is the timedEventGenerator
+    '''
+    print("starting/restarting timedEventGenerator")
+    return subprocess.Popen(['./timedEventGenerator.py'],
+                            close_fds=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+def protected_command_line(command):
+    '''
+    protected_command_line - executes a command line, picks up the results, and handles errors
+    '''
+    ok = False
+    retry = True
+    count = 0
+    result = ""
+    while retry:
+        try:
+            result = subprocess.check_output(command, shell=True).decode("utf-8")
+            ok = True
+            retry = False
+        except subprocess.CalledProcessError as err:
+            text = err.output.decode("utf-8")
+            print(f"called processor error: {text}")
+            time.sleep( 2 * count )
+            count += 1
+            if count > RETRY_LIMIT:
+                retry = False
+                print("command returned error code:", err)
+        except Exception as err:
+            print(f"other exception: {err}")
+            time.sleep( 2 * count )
+            count += 1
+            if count > RETRY_LIMIT:
+                retry = False
+                print("command returned error code:", err)
+
+    if not ok:
+        print("terminating")
+        sys.exit(1)
+
+    if count > 0:
+        print("info: while executing command,", command, ", had to retry", count, "times")
+
+    return result
+
+def main():
+    '''
+    main program
+    '''
+    gateway_failure_count = 0
+    httpserver_failure_count = 0
+    timedEventGenerator_failure_count = 0
+    processes = []
+    restarts = 0
+
+    try:
+        while True:  # don't stop
+            result = protected_command_line("ps -ef | grep gateway 2>&1")
+            for line in result.split("\n"):
+                found = GATEWAY_PATTERN.search(line)
+                if found:
+                    gateway_failure_count = 0
+                    break
+                gateway_failure_count += 1
+                print(f"gateway pattern not in {line}")
+            result = protected_command_line("ps -ef | grep httpserver.py 2>&1")
+            for line in result.split("\n"):
+                found = HTTPSERVER_PATTERN.search(line)
+                if found:
+                    httpserver_failure_count = 0
+                    break
+                httpserver_failure_count += 1
+                print(f"httpserver pattern not in {line}")
+            result = protected_command_line("ps -ef | grep timedEventGenerator.py 2>&1")
+            for line in result.split("\n"):
+                found = TIMEDEVENTGENERATOR_PATTERN.search(line)
+                if found:
+                    timedEventGenerator_failure_count = 0
+                    break
+                timedEventGenerator_failure_count += 1
+                print(f"timedEventGenerator pattern not in {line}")
+            if gateway_failure_count > FAIL_THRESHOLD:
+                restarts += 1
+                print("need to restart gateway ************")
+                processes.append(start_restart_gateway())
+            if httpserver_failure_count > FAIL_THRESHOLD:
+                restarts += 1
+                processes.append(start_restart_httpserver())
+                print("need to restart httpserver *********")
+            if timedEventGenerator_failure_count > FAIL_THRESHOLD:
+                restarts += 1
+                processes.append(start_restart_timedEventGenerator())
+                print("need to restart timedEventGenerator ********")
+            time.sleep(10)
+    except KeyboardInterrupt:
+        print(f"Terminating, total starts or restarts: {restarts}")
+        for process in processes:
+            process.terminate()
+
+if __name__ == "__main__":
+    if len(sys.argv) != 1:
+        print("usage: watchdog")
+        sys.exit(1)
+    main()
