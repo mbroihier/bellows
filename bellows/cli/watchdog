@@ -6,13 +6,17 @@ import re
 import subprocess
 import sys
 import time
+import requests
 # regular expression patterns to look for
 GATEWAY_PATTERN = re.compile(r'bellows gateway')
 HTTPSERVER_PATTERN = re.compile(r'python ./httpserver.py')
 TIMEDEVENTGENERATOR_PATTERN = re.compile(r'python ./timedEventGenerator.py')
+TIME_WAIT_PATTERN = re.compile(r'TIME_WAIT')
+ESTABLISHED_PATTERN = re.compile(r'ESTABLISHED')
 # constants
 RETRY_LIMIT = 3
 FAIL_THRESHOLD = 3
+HOLD_LIMIT = 3
 
 def start_restart_gateway():
     '''
@@ -32,7 +36,8 @@ def start_restart_httpserver():
 
 def start_restart_timedEventGenerator():
     '''
-    start_restart_timedEventGenerator - starts/restarts a child process that is the timedEventGenerator
+    start_restart_timedEventGenerator - starts/restarts a child process that is
+                                        the timedEventGenerator
     '''
     print("starting/restarting timedEventGenerator")
     return subprocess.Popen(['./timedEventGenerator.py'],
@@ -52,13 +57,12 @@ def protected_command_line(command):
             ok = True
             retry = False
         except subprocess.CalledProcessError as err:
-            text = err.output.decode("utf-8")
-            print(f"called processor error: {text}")
+            print(f"called process error: {err}")
             time.sleep( 2 * count )
             count += 1
+            ok = True
             if count > RETRY_LIMIT:
                 retry = False
-                print("command returned error code:", err)
         except Exception as err:
             print(f"other exception: {err}")
             time.sleep( 2 * count )
@@ -76,15 +80,57 @@ def protected_command_line(command):
 
     return result
 
+def check_for_hung_server_template():
+    '''
+    check_for_hung_server - if HTTP connection is persistently present, server is likely hung
+    '''
+    httpserver_has_been_operational = 0
+    httpserver_no_response_failure_count = 0
+    hold = 0
+    while True:
+        (httpserver_has_been_operational, httpserver_no_response_failure_count) = yield (
+            httpserver_has_been_operational, httpserver_no_response_failure_count)
+        try:
+            result = protected_command_line("/usr/bin/netstat -an | grep 8124")
+            found = False
+            for line in result.split("\n"):
+                found = ESTABLISHED_PATTERN.search(line)
+                if found:
+                    break
+            if not found:
+                hold += 1
+                if hold > HOLD_LIMIT:
+                    hold = 0
+                    print("sending a get")
+                    requests.get('http://localhost:8124/index.html', timeout=5.0)
+                    httpserver_has_been_operational = True
+                    httpserver_no_response_failure_count = 0
+            else:
+                if httpserver_has_been_operational:
+                    httpserver_no_response_failure_count += 1
+                print("possible hung httpserver - current count: "
+                      f"{httpserver_no_response_failure_count}")
+
+        except requests.exceptions.Timeout:
+            print("httpserver is not responding")
+            if httpserver_has_been_operational:
+                httpserver_no_response_failure_count += 1
+        except requests.exceptions.ConnectionError:
+            print("can not connect to httpserver")
+
 def main():
     '''
     main program
     '''
     gateway_failure_count = 0
     httpserver_failure_count = 0
+    httpserver_no_response_failure_count = 0
     timedEventGenerator_failure_count = 0
-    processes = []
+    processes = {}
     restarts = 0
+    httpserver_has_been_operational = False
+    check_for_hung_server = check_for_hung_server_template()
+    next(check_for_hung_server)
 
     try:
         while True:  # don't stop
@@ -95,7 +141,6 @@ def main():
                     gateway_failure_count = 0
                     break
                 gateway_failure_count += 1
-                print(f"gateway pattern not in {line}")
             result = protected_command_line("ps -ef | grep httpserver.py 2>&1")
             for line in result.split("\n"):
                 found = HTTPSERVER_PATTERN.search(line)
@@ -103,7 +148,8 @@ def main():
                     httpserver_failure_count = 0
                     break
                 httpserver_failure_count += 1
-                print(f"httpserver pattern not in {line}")
+            (httpserver_has_been_operational, httpserver_no_response_failure_count) = check_for_hung_server.send(
+                (httpserver_has_been_operational, httpserver_no_response_failure_count))
             result = protected_command_line("ps -ef | grep timedEventGenerator.py 2>&1")
             for line in result.split("\n"):
                 found = TIMEDEVENTGENERATOR_PATTERN.search(line)
@@ -111,23 +157,24 @@ def main():
                     timedEventGenerator_failure_count = 0
                     break
                 timedEventGenerator_failure_count += 1
-                print(f"timedEventGenerator pattern not in {line}")
             if gateway_failure_count > FAIL_THRESHOLD:
                 restarts += 1
-                print("need to restart gateway ************")
-                processes.append(start_restart_gateway())
-            if httpserver_failure_count > FAIL_THRESHOLD:
+                processes['gateway'] = start_restart_gateway()
+            if (httpserver_failure_count > FAIL_THRESHOLD or
+                httpserver_no_response_failure_count > FAIL_THRESHOLD):
                 restarts += 1
-                processes.append(start_restart_httpserver())
-                print("need to restart httpserver *********")
+                httpserver_has_been_operational = False
+                if 'httpserver' in processes:
+                    processes['httpserver'].terminate()
+                processes['httpserver'] = start_restart_httpserver()
+                httpserver_no_response_failure_count = 0
             if timedEventGenerator_failure_count > FAIL_THRESHOLD:
                 restarts += 1
-                processes.append(start_restart_timedEventGenerator())
-                print("need to restart timedEventGenerator ********")
+                processes['timedEventGenerator'] = start_restart_timedEventGenerator()
             time.sleep(10)
     except KeyboardInterrupt:
         print(f"Terminating, total starts or restarts: {restarts}")
-        for process in processes:
+        for _, process in processes.items():
             process.terminate()
 
 if __name__ == "__main__":

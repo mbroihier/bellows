@@ -7,6 +7,7 @@ import copy
 import json
 import logging
 import signal
+import time
 
 from websockets.server import serve as wsserve
 
@@ -162,6 +163,8 @@ async def producer_handler(websocket, connection_number):
     ipo = InterprocessObjects.InterprocessObjects()
     lastSentStatus = copy.deepcopy(ipo.lastStatus)
     local_message_update_counter = ipo.message_update_counter
+    stale_count = 0
+    STALE_LIMIT = 400
     while True:
         await asyncio.sleep(0.3)
         if (((ipo.lastStatus != lastSentStatus) or
@@ -172,8 +175,14 @@ async def producer_handler(websocket, connection_number):
                 await websocket.send(json.dumps(ipo.lastStatus))
                 lastSentStatus = copy.deepcopy(ipo.lastStatus)
                 local_message_update_counter = ipo.message_update_counter
+                stale_count = 0
             except Exception as e:
                 LOGGER.warning(f"{e} - can not write to websocket, closing client connection"
                                f"({connection_number})")
                 await websocket.close()
                 break
+        stale_count += 1
+        if stale_count > STALE_LIMIT:
+            await websocket.close()  # close if idle
+            LOGGER.warning(f"closing websocket ({connection_number}), stale")
+            break

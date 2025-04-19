@@ -1,6 +1,7 @@
 '''
 InterprocessObjects - objects accessed by separate processes running within the gateway
 '''
+import threading
 import time
 class InterprocessObjects ():
     '''
@@ -29,6 +30,7 @@ class InterprocessObjects ():
             self.message_update_counter = None
             self.command_tuples = {}
             self.network_devices = None
+            self.lock = threading.Lock()
             self.update_status = self.update_status_template()
             next(self.update_status)
 
@@ -38,5 +40,10 @@ class InterprocessObjects ():
         '''
         while True:
             (device, field, value) = yield
+            status = self.lock.acquire(blocking=False)
+            if status == False:
+                print("Unexpected failure when attempting to lock interprocess data")
+                self.lock.acquire()  # block until ready            
             self.lastStatus[device+field] = value
             self.last_update_time = time.time()
+            self.lock.release()
