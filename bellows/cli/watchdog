@@ -3,6 +3,7 @@
 watchdog - monitor bellows + processes and restart if not responding
 '''
 import re
+import select
 import subprocess
 import sys
 import time
@@ -171,6 +172,13 @@ def main():
             if timedEventGenerator_failure_count > FAIL_THRESHOLD:
                 restarts += 1
                 processes['timedEventGenerator'] = start_restart_timedEventGenerator()
+            for _, process in processes.items():
+                rlist, _, _ = select.select([process.stdout.fileno(),
+                                             process.stderr.fileno()], [], [], 1.0)
+                if process.stdout.fileno() in rlist:
+                    process.stdout.readline()
+                if process.stderr.fileno() in rlist:
+                    process.stderr.readline()
             time.sleep(10)
     except KeyboardInterrupt:
         print(f"Terminating, total starts or restarts: {restarts}")
