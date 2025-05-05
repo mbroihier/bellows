@@ -47,12 +47,27 @@
 	  }
 	  start("http client connection request");
 	  wssend = function(message) {
-	      try {
-		  console.log("sending " + message);
-		  socket.send(message);
-	      } catch (error) {
-		  console.log("websocket send failed: " + error);
-		  start(message);
+	      if (socket == null) {
+		  console.log('need to reopen socket');
+		  start("http client connection request");
+		  setTimeout(function() {
+		      try {
+			  console.log("sending " + message);
+			  socket.send(message);
+		      } catch (error) {
+			  console.log("websocket send failed: " + error);
+			  start(message);
+		      }
+		  }, 500)
+	      } else {
+		  console.log('socket was previuosly defined');
+		  try {
+		      console.log("sending " + message);
+		      socket.send(message);
+		  } catch (error) {
+		      console.log("websocket send failed: " + error);
+		      start(message);
+		  }
 	      }
 	  }
       }
