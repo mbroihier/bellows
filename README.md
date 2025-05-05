@@ -144,3 +144,13 @@ One can have an arbitrary number of on or off commands.  Simply add to the array
 ## HTTP Page Customization
 
 The index.txt file can and should be modified so that the canned names installed by bellows buildtools are meaningful.  If, for instance, name0 & name1 refer to a light in a office of your home, you might want to change them to office on and office off.  If name2 & name3 refer to a light in your master bedroom, you might want to change them to master bedroom on and master bedroom off.  Remember that this file needs to be renamed to index.html so that the HTTP server will use it for building the home page.
+
+## Discovery Configuration
+
+Version 2 has the ability to add other gateway commands via a discovery process.  link_config.txt defines basic links that can be used to make chains that perform commands.  Links are chains of one command.  derived_chains.txt define chains that are built from multiple links.
+
+The idea is that the link_config.txt file is to be used to discover if devices in the network support a link (a ZCL command).  Bellows plus queries the device to see if it has the "endpoint", "cluster", and "command".  If it does, it associates the link/chain with the device.
+
+Next derived chains are are built using the derived_chains.txt file.  If a device supports all the links in the derived chain, that new chain is associated with the device.
+
+There are several intrinsic links used to support simple processing of such as the development of the "color temperature".  These are: setp (set parameters), addp (add a value to parameters), subtractp (subtract a value from parameters), multiplyp (multiply parameters by a value), dividep (divide parameters by a value), store (store a parameter), and read (read a parameter).  The derived_chains.txt file illustrates the use of these intrinsic links. 
