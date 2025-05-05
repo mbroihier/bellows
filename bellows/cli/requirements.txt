@@ -4,7 +4,7 @@ aiosqlite==0.20.0
 astroid==3.3.8
 async-timeout==4.0.3
 attrs==23.2.0
--e git+https://github.com/mbroihier/bellows@cc59ab29fe01b6a8f2546084c1ddcc63c75d991c#egg=bellows
+-e git+https://github.com/mbroihier/bellows@7c0d867ff5249d03dd2c13e3a203a9b9d2cf43cb#egg=bellows
 certifi==2024.7.4
 cffi==1.16.0
 charset-normalizer==3.3.2
