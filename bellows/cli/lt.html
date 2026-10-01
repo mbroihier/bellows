@@ -31,8 +31,28 @@
 	  slider.oninput = function() {
 	      wssend('b0:c7:de:ff:fe:52:ca:58setCT '+this.value)
 	  }
+	  var levelSliderValue = document.getElementById('light-level');
+	  var setNewLevel = document.getElementById('level-slider-value');
+	  levelSliderValue.oninput = function () {
+	      setNewLevel.textContent = this.value;
+	      wssend('b0:c7:de:ff:fe:52:ca:58setLevel '+this.value)
+	  }
+	  var hueSliderValue = document.getElementById('hue-level');
+	  var setNewHue = document.getElementById('hue-slider-value');
+	  hueSliderValue.oninput = function () {
+	      setNewHue.textContent = this.value;
+	      wssend('b0:c7:de:ff:fe:52:ca:58setHue '+this.value)
+	  }
+	  var satSliderValue = document.getElementById('sat-level');
+	  var setNewSat = document.getElementById('sat-slider-value');
+	  satSliderValue.oninput = function () {
+	      setNewSat.textContent = this.value;
+	      wssend('b0:c7:de:ff:fe:52:ca:58setSat '+this.value)
+	  }
 	  var socket = null;
 	  var initialMessage;
+	  var oldStatusObject = null;
+	  var equalCount = 0;
 	  let start = function(message) {
 	      initialMessage = message;
 	      socket = new WebSocket("ws://192.168.1.224:8126");
@@ -59,9 +79,11 @@
 			  console.log("Color: " + c)
 			  console.log("min Color Temperature: " + min)
 			  console.log("max Color Temperature: " + max)
-			  let sTarget = document.getElementById('slider')
 			  T =  Math.floor(1000000 / T / 100 + 0.5) * 100
 			  console.log("Color Temperature (Kelvin): " + T)
+			  let sTarget = document.getElementById('lt-slider-value');
+			  sTarget.textContent = T;
+			  sTarget = document.getElementById('slider')
 			  sTarget.value = T;
 			  sTarget.setAttribute('min', min);
 			  sTarget.setAttribute('max', max);
@@ -99,6 +121,41 @@
 		      if (targetElement != null) {
 			  targetElement.setAttribute('style', 'visibility: visible');
 			  targetElement.setAttribute('style', 'color: '+c);
+			  if (statusObject[device+"Level"] != null) {
+			      let sliderRef = document.getElementById('light-level');
+			      console.log("old level "+setNewLevel.textContent);
+			      setNewLevel.textContent = statusObject[device+"Level"];
+			      setNewHue.textContent = statusObject[device+"hue"];
+			      hueSliderValue.value = statusObject[device+"hue"];
+			      setNewSat.textContent = statusObject[device+"saturation"];
+			      satSliderValue.value = statusObject[device+"saturation"];
+			      sliderRef.value = statusObject[device+"Level"];
+			      console.log("new level "+setNewLevel.textContent);
+			      console.log("new slider value "+sliderRef.value);
+			      if (oldStatusObject == null) {
+				  oldStatusObject = structuredClone(statusObject);
+				  equalCount = 0;
+				  console.log('oldStatusObject was null and should now be set');
+			      } else {
+				  let objectsEqual = true;
+				  console.log('checking each element of statusObject');
+				  for (const [key, value] of Object.entries(oldStatusObject)) {
+				      if (statusObject[key] != value) {
+					  console.log('statusObject['+key+'] is not '+value);
+					  equalCount = 0;
+					  objectsEqual = false;
+				      }
+				  }
+				  if (objectsEqual) {
+				      equalCount++;
+				  }
+				  console.log("equalCount: "+equalCount);
+				  oldStatusObject = structuredClone(statusObject);
+			      }
+			      if (equalCount < 5) {
+				  socket.send(device+'readCT');
+			      }
+			  }
 		      }
 		  }
 	      }
@@ -148,27 +205,43 @@
     <h1> Color Temperature </h1>
     <ul>
       <div id="wjs" style="display: none">
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 3000')" >3000</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3500" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 3500')" >3500</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 4000')" >4000</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4500" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 4500')" >4500</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 5000')" >5000</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5500" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 5500')" >5500</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 6000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 6000')" >6000</button></li>
-<input class="slider" type="range" min="2000" max="8000" value="5000" id="slider">
-      </div>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 3000')" >3000</button></li>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3500" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 3500')" >3500</button></li>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 4000')" >4000</button></li>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4500" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 4500')" >4500</button></li>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 5000')" >5000</button></li>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5500" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 5500')" >5500</button></li>
+	<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 6000" style="visibility: hidden" onclick="wssend('b0:c7:de:ff:fe:52:ca:58setCT 6000')" >6000</button></li>
+	<li>
+	  <label for="lt-form">Light Temperature: <span id="lt-slider-value">5000</span></label>
+	  <input class="slider" type="range" min="2000" max="8000" value="5000" id="slider">
+
+	</li>
+	<li>
+	  <label for="level-form">Level: <span id="level-slider-value">128</span></label>
+	  <input class="slider" type="range" id="light-level" min="0" max="256" value="128">
+	</li>
+	<li>
+	  <label for="hue-form">Hue Level: <span id="hue-slider-value">128</span></label>
+	  <input class="slider" type="range" id="hue-level" min="0" max="254" value="128">
+	</li>
+	<li>
+	  <label for="sat-form">Saturation Level: <span id="sat-slider-value">128</span></label>
+	  <input class="slider" type="range" id="sat-level" min="0" max="254" value="128">
+	</li>
     </ul>
+    </div>
     <ul>
       <div id="wojs" style="display: block">
-      <form>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 3000" formmethod="get">3000</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3500" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 3500" formmethod="get">3500</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 4000" formmethod="get">4000</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4500" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 4500" formmethod="get">4500</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 5000" formmethod="get">5000</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5500" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 5500" formmethod="get">5500</button></li>
-<li><button id="b0:c7:de:ff:fe:52:ca:58setCT 6000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 6000" formmethod="get">6000</button></li>
-      </form>
+	<form>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 3000" formmethod="get">3000</button></li>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 3500" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 3500" formmethod="get">3500</button></li>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 4000" formmethod="get">4000</button></li>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 4500" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 4500" formmethod="get">4500</button></li>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 5000" formmethod="get">5000</button></li>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 5500" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 5500" formmethod="get">5500</button></li>
+	  <li><button id="b0:c7:de:ff:fe:52:ca:58setCT 6000" style="visibility: visible" type="submit" formaction="/b0:c7:de:ff:fe:52:ca:58setCT 6000" formmethod="get">6000</button></li>
+	</form>
       </div>
     </ul>
   </body>

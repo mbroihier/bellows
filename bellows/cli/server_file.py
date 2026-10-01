@@ -28,6 +28,8 @@ def get_address(command):
     result = result.replace('readLevel', '')
     result = result.replace('setCT', '')
     result = result.replace('setLevel', '')
+    result = result.replace('setHue', '')
+    result = result.replace('setSat', '')
     result = result.split(' ')[0]
     return result
 
@@ -74,6 +76,8 @@ async def entry(command_info, app):
                 LOGGER.debug(f"initializing status for {addr}")
                 await chains.execute(command)
             if 'readCT' in command:
+                await chains.execute(command)
+            if 'readLevel' in command:
                 await chains.execute(command)
 
     chains = zcl_chains.ZCL_Chains(commandList)

@@ -150,7 +150,7 @@ class Chain():
                 last_link = this_link
                 this_link = this_link.next
             except (zigpy.exceptions.ZigbeeException, ZeroDivisionError) as e:
-                LOGGER.debug(f"exception while processing a chain: {e}")
+                LOGGER.warning(f"exception while processing a chain: {e}")
                 if 'on' in this_link.name or 'off' in this_link.name or 'status' in this_link.name:
                     self.ipo.update_status.send((self.device, "", 'unknown'))
                 elif 'read' in this_link.name:  # set all values to zero - typically invalid
@@ -165,6 +165,10 @@ class Chain():
                         if label == '""':
                             label = ''
                         self.ipo.update_status.send((self.device, label, 0))
+                last_link = None
+                break
+            except (TimeoutError) as e:
+                LOGGER.warning(f"exception while processing a chain: {repr(e)}")
                 last_link = None
                 break
         if last_link is not None and last_link.name != 'store':
